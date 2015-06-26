@@ -1,18 +1,5 @@
 package datastore
 
-// filteredByOrderQueries := map[string]string{
-// 		"descending_question_upvotes":       `SELECT * FROM post ORDER BY question_upvotes DESC LIMIT 10`,
-// 		"ascending_question_upvotes":        `SELECT * FROM post ORDER BY question_upvotes ASC LIMIT 10`,
-// 		"descending_current_answer_upvotes": `SELECT * FROM post ORDER BY current_answer_upvotes DESC LIMIT 10`,
-// 		"ascending_current_answer_upvotes":  `SELECT * FROM post ORDER BY current_answer_upvotes ASC LIMIT 10`,
-// 		"descending_question_date":          `SELECT * FROM post ORDER BY question_submitted_at DESC LIMIT 10`,
-// 		"ascending_question_date":           `SELECT * FROM post ORDER BY question_submitted_at ASC LIMIT 10`,
-// 		"descending_answers_edits":          `SELECT * FROM post ORDER BY answer_edits DESC LIMIT 10`,
-// 		"ascending_answer_edits":            `SELECT * FROM post ORDER BY answer_edits ASC LIMIT 10`,
-// 		"descending_answer_edits":           `SELECT * FROM post ORDER BY answer_last_edited_at DESC LIMIT 10`,
-// 		"ascending_answer_edits":            `SELECT * FROM post ORDER BY answer_last_edited_at ASC LIMIT 10`,
-// 	}
-//
 import (
 	"database/sql"
 	"log"
@@ -21,91 +8,106 @@ import (
 )
 
 type PostStoreActions interface {
-	FindByID(string) (*app.Post, error)
-	FindByFilter(string, string) ([]*app.Post, error)
+	FindByID(string) (*app.Question, *app.Answer)
+	FindByAuthor(string, string) []*app.Question
+	FindByFilter(string, string) []*app.Question
 }
 
 type PostStore struct {
 	DB *sql.DB
 }
 
-func NewPostStore() *PostStore {
-	return &PostStore{}
+func NewPostStore(db *sql.DB) *PostStore {
+	return &PostStore{db}
 }
 
-func (store *PostStore) FindByID(id string) (*app.Post, error) {
-	row, err := store.DB.Query(`SELECT * FROM post WHERE post_id = $1`, id)
+func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
+
+	row := store.DB.QueryRow(`SELECT id, title, author, content, upvotes, submitted_at, edit_count FROM question WHERE id = $1`, id)
+
+	question := app.NewQuestionStruct()
+	err := row.Scan(&question.ID, &question.Title, &question.Author,
+		&question.Content, &question.Upvotes,
+		&question.SubmittedAt, &question.EditCount)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	answer := app.NewAnswerStruct()
+	row = store.DB.QueryRow(`SELECT id, question_id, is_current_answer, author, content, upvotes, last_edited_at FROM answer WHERE question_id = $1 AND is_current_answer = 'true'`, id)
+	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.IsCurrentAnswer, &answer.Author, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
+	if err == sql.ErrNoRows {
+		return question, nil
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	return question, answer
+}
+
+func (store *PostStore) FindByAuthor(filter, author string) []*app.Question {
+	var query string
+
+	if filter == "posted-by" {
+		query = `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question WHERE author = $1`
+	} else if filter == "answered-by" {
+		query = `SELECT q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON (a.author = $1 AND a.question_id = q.id)`
+	} else {
+		return nil
+	}
+
+	rows, err := store.DB.Query(query, author)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Have to call ScanPosts even if rows does not actually contain any returned rows, because the only way of checking if rows contains sql rows is to call the Next() function on rows. The Next() function also iterates through rows if rows exists, therefore if rows does exists, Next() is called on rows, then rows has lost a row because one rows has been iterated by the call to Next()
-	posts, err := ScanPosts(row)
+
+	return scanQuestions(rows)
+}
+
+func (store *PostStore) FindByFilter(filter, offset string) []*app.Question {
+	filteredQueries := map[string]string{
+		"question/upvotes/desc": `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY upvotes DESC LIMIT 10 OFFSET $1`,
+		"question/upvotes/asc":  `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM  question ORDER BY upvotes ASC LIMIT 10 OFFSET $1`,
+		"answer/upvotes/desc":   `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes DESC LIMIT 10 OFFSET $1`,
+		"answer/upvotes/asc":    `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes ASC LIMIT 10 OFFSET $1`,
+		"question/date/desc":    `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at DESC LIMIT 10 OFFSET $1`,
+		"question/date/asc":     `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at ASC LIMIT 10 OFFSET $1`,
+		"answer/edits/desc":     `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY edit_count DESC LIMIT 10 OFFSET $1`,
+		"answer/edits/asc":      `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY answer_edits ASC LIMIT 10 OFFSET $1`,
+		"answer/date/desc":      `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at DESC LIMIT 10 OFFSET $1`,
+		"answer/date/asc":       `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at ASC LIMIT 10 OFFSET $1`,
+	}
+
+	query, ok := filteredQueries[filter]
+	if !ok {
+		return nil
+	}
+
+	rows, err := store.DB.Query(query, offset)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	return posts[0], err
+
+	return scanQuestions(rows)
 }
 
-func (store *PostStore) FindByFilter(filterBy, filterVal string) ([]*app.Post, error) {
-	filteredByValQueries := map[string]string{
-		"user/questions":       `SELECT * FROM post WHERE question_author = $1`,
-		"user/posted_answers":  `SELECT * FROM post WHERE current_answer_author = $1`,
-		"user/pending_answers": `SELECT * FROM post WHERE first_pending_answer_author = $1 OR WHERE second_pending_answer_author = $1 OR WHERE third_pending_answer_author = $1 OR WHERE fourth_pending_answer_author = $1 OR WHERE fifth_pending_answer_author = $1`,
-	}
-	if query, ok := filteredByValQueries[filterBy]; ok {
-		rows, err := store.DB.Query(query, filterVal)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return ScanPosts(rows)
-	}
-
-	return nil, errInvalidFilter
-
-}
-
-func ScanPosts(rows *sql.Rows) ([]*app.Post, error) {
-
-	defer rows.Close()
-
-	var posts []*app.Post
-	post := app.NewPostStruct()
-	scanablePost := []interface{}{
-		&post.Postid, &post.Qauthor, &post.Qtitle,
-		&post.Qcontent, &post.Qupvotes,
-		&post.QsubmittedAt, &post.AnsLastEditedAt,
-		&post.AnsEdits, &post.CurrentAns,
-		&post.CurrentAnsUpvotes,
-		&post.CurrentAnsAuthor,
-		&post.FirstPendingAns,
-		&post.FirstPendingAnsUpvotes,
-		&post.FirstPendingAnsAuthor,
-		&post.SecondPendingAns,
-		&post.SecondPendingAnsUpvotes,
-		&post.SecondPendingAnsAuthor,
-	}
+func scanQuestions(rows *sql.Rows) []*app.Question {
+	var questions []*app.Question
 
 	for rows.Next() {
-		columns, err := rows.Columns()
-		columnCount := len(columns)
+		tempQuestion := app.NewQuestionStruct()
+		err := rows.Scan(&tempQuestion.ID, &tempQuestion.Title, &tempQuestion.Author, &tempQuestion.Upvotes, &tempQuestion.SubmittedAt, &tempQuestion.EditCount)
 		if err != nil {
 			log.Fatal(err)
 		}
-		scanablePtrs := make([]interface{}, columnCount)
-		for i := 0; i < columnCount; i++ {
-			scanablePtrs[i] = scanablePost[i]
-		}
-		err = rows.Scan(scanablePtrs...)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-		posts = append(posts, post)
-		post = app.NewPostStruct()
+		questions = append(questions, tempQuestion)
 	}
-	if len(posts) == 0 {
-		return nil, errInvalidRequestParam
-	}
-	return posts, nil
 
+	if len(questions) == 0 {
+		return nil
+	}
+	return questions
 }

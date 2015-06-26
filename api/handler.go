@@ -13,8 +13,9 @@ import (
 func Handler(store *datastore.PostStore) *mux.Router {
 	m := router.NewAPIRouter()
 
-	m.Get(router.ViewPost).Handler(ServePostByID(store))
-	m.Get(router.ViewFilteredPosts).Handler(ServeFilteredPosts(store))
+	m.Get(router.ViewPost).Handler(servePostByID(store))
+	m.Get(router.ViewQuestionsByAuthor).Handler(serveQuestionsByAuthor(store))
+	m.Get(router.ViewFilteredQuestions).Handler(serveQuestionsByFilter(store))
 
 	return m
 }
@@ -24,15 +25,16 @@ func errorHandler(w http.ResponseWriter, status int, err string) {
 	fmt.Fprint(w, err)
 }
 
-func printJSON(w http.ResponseWriter, posts interface{}) {
+func printJSON(w http.ResponseWriter, content interface{}) {
 
-	postJSON, err := json.MarshalIndent(posts, "", " ")
+	w.Header().Set("Content-Type", "application/json")
+
+	postJSON, err := json.MarshalIndent(content, "", " ")
 	if err != nil {
 		errorHandler(w, http.StatusInternalServerError, "")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(postJSON)
 	if err != nil {
 		errorHandler(w, http.StatusInternalServerError, "")

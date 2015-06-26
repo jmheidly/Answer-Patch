@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-	postStore := datastore.NewPostStore()
-	postStore.DB = datastore.ConnectToDatabase()
+	postStore := datastore.NewPostStore(datastore.ConnectToDatabase("postgres", "test", "testap1poststore"))
 
 	m := api.Handler(postStore)
 
