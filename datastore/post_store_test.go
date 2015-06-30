@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/patelndipen/AP1/app"
+	"github.com/patelndipen/AP1/models"
 )
 
 var testingGlobalPostStore *PostStore
@@ -20,9 +20,9 @@ func init() {
 
 func TestFindByID(t *testing.T) {
 
-	expectedQuestion := &app.Question{2, "How many days are there in spring?", "postStoreTester2", "I love spring weather", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}
+	expectedQuestion := &models.Question{2, "How many days are there in spring?", "postStoreTester2", "I love spring weather", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}
 
-	expectedAnswer := &app.Answer{2, 2, true, "postStoreTester1", "Spring 2016 starts on March 20th", 20, parseTimeStamp("0000-01-01T22:20:05.748316-04:00")}
+	expectedAnswer := &models.Answer{2, 2, true, "postStoreTester1", "Spring 2016 starts on March 20th", 20, parseTimeStamp("0000-01-01T22:20:05.748316-04:00")}
 
 	retrievedQuestion, retrievedAnswer := testingGlobalPostStore.FindByID("2")
 
@@ -55,14 +55,14 @@ func TestFindByID(t *testing.T) {
 func TestFindByAuthor(t *testing.T) {
 
 	// Tests FindByAuthor based off of providing the author of a questions
-	expectedQuestions := []*app.Question{&app.Question{1, "Where is the best sushi place?", "postStoreTester1", "", 10, parseTimeStamp("0000-01-01T22:20:05.70397-04:00"), 2}, &app.Question{3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}}
+	expectedQuestions := []*models.Question{&models.Question{1, "Where is the best sushi place?", "postStoreTester1", "", 10, parseTimeStamp("0000-01-01T22:20:05.70397-04:00"), 2}, &models.Question{3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}}
 
 	retrievedQuestions := testingGlobalPostStore.FindByAuthor("posted-by", "postStoreTester1")
 
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
 	// Tests FindByAuthor based off of providing the author of an answer
-	expectedQuestions = []*app.Question{{2, "How many days are there in spring?", "postStoreTester2", "", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}, {3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}}
+	expectedQuestions = []*models.Question{{2, "How many days are there in spring?", "postStoreTester2", "", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}, {3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}}
 
 	retrievedQuestions = testingGlobalPostStore.FindByAuthor("answered-by", "postStoreTester1")
 
@@ -73,7 +73,7 @@ func TestFindByAuthor(t *testing.T) {
 func TestFindByFilter(t *testing.T) {
 
 	//Test for "question/upvotes/desc"
-	expectedQuestions := []*app.Question{{3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}, {2, "How many days are there in spring?", "postStoreTester2", "", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}, {1, "Where is the best sushi place?", "postStoreTester1", "", 10, parseTimeStamp("0000-01-01T22:20:05.70397-04:00"), 2}}
+	expectedQuestions := []*models.Question{{3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}, {2, "How many days are there in spring?", "postStoreTester2", "", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}, {1, "Where is the best sushi place?", "postStoreTester1", "", 10, parseTimeStamp("0000-01-01T22:20:05.70397-04:00"), 2}}
 	retrievedQuestions := testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
@@ -99,12 +99,13 @@ func TestFindByFilter(t *testing.T) {
 
 }
 
-func TestCreateQuestion(t *testing.T) {
+func TestCheckQuestionExistence(t *testing.T) {
 
 	//Test for recognition of existing question with exact title
-	if id := testingGlobalPostStore.CreateQuestion(&app.Question{Title: "Where is the best sushi place?"}); id != 1 {
+	if id := testingGlobalPostStore.CheckQuestionExistence("Where is the best sushi place?"); id != 1 {
 		t.Errorf("CreateQuestion did not return the id of an existing question, instead CreateQuestion returned %d", id)
 	}
+
 }
 
 func parseTimeStamp(timestamp string) time.Time {
@@ -117,7 +118,7 @@ func parseTimeStamp(timestamp string) time.Time {
 	return formattedTime
 }
 
-func checkQuestionsForEquality(t *testing.T, x []*app.Question, y []*app.Question) {
+func checkQuestionsForEquality(t *testing.T, x []*models.Question, y []*models.Question) {
 
 	if x == nil {
 		t.Errorf("Recieved nil, but expected %#v", y)

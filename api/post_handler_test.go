@@ -7,27 +7,31 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/patelndipen/AP1/app"
+	"github.com/patelndipen/AP1/models"
 )
 
 type MockPostStore struct {
 	existingID int
 }
 
-func (store *MockPostStore) FindByID(id string) (*app.Question, *app.Answer) {
+func (store *MockPostStore) FindByID(id string) (*models.Question, *models.Answer) {
 	return nil, nil
 }
 
-func (store *MockPostStore) FindByAuthor(filter, author string) []*app.Question {
+func (store *MockPostStore) FindByAuthor(filter, author string) []*models.Question {
 	return nil
 }
 
-func (store *MockPostStore) FindByFilter(filter, offset string) []*app.Question {
+func (store *MockPostStore) FindByFilter(filter, offset string) []*models.Question {
 	return nil
 }
 
-func (store *MockPostStore) CreateQuestion(q *app.Question) int {
+func (store *MockPostStore) CheckQuestionExistence(title string) int {
 	return store.existingID
+}
+
+func (store *MockPostStore) StoreQuestion(title, author, content string) {
+	return
 }
 
 func TestServeSubmitQuestion(t *testing.T) {
@@ -50,7 +54,7 @@ func TestServeSubmitQuestion(t *testing.T) {
 	}
 
 	// Test whether a request body containing an existing post results in a redirect to the existing question
-	existingQuestion := &app.Question{Title: "Where is the best sushi place?", Author: "sisyphus", Content: "I have cravings"}
+	existingQuestion := &models.Question{Title: "Where is the best sushi place?", Author: "sisyphus", Content: "I have cravings"}
 
 	body, err := json.Marshal(existingQuestion)
 	if err != nil {
@@ -61,13 +65,14 @@ func TestServeSubmitQuestion(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	w = httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 
 	if w.Code != 303 {
-		t.Errorf("Expected a status code of 303 due the existence of a question with the same title as that of the question recieved in the request body, recieved a status code of %d", w.Code)
+		t.Errorf("Expected a status code of 303 due to the existence of a question with the same title as that of the question recieved in the request body, recieved a status code of %d", w.Code)
 
 	}
 }

@@ -25,7 +25,10 @@ func Handler(store *datastore.PostStore) *mux.Router {
 // Ensures that POST requests contain data in the request body
 func checkRequestBody(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Body == nil {
+
+		if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
+			http.Error(w, "This api only accepts JSON payloads. Be sure to specify the \"Content-Type\" of the payload in the request header.", http.StatusBadRequest)
+		} else if r.Body == nil {
 			http.Error(w, "No data recieved through the request", http.StatusBadRequest)
 		} else {
 			fn(w, r)
@@ -49,19 +52,22 @@ func printJSON(w http.ResponseWriter, content interface{}) {
 	}
 }
 
-func parseRequestBody(w http.ResponseWriter, requestBody io.ReadCloser, loc interface{}) {
+func parseRequestBody(r *http.Request, loc interface{}) (string, int) {
 
-	body, err := ioutil.ReadAll(io.LimitReader(requestBody, 1048576))
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return "Error reading request body", http.StatusInternalServerError
 	}
 
-	if err = requestBody.Close(); err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+	if err = r.Body.Close(); err != nil {
+		return "", http.StatusInternalServerError
 	}
 
 	err = json.Unmarshal(body, loc)
 	if err != nil {
-		http.Error(w, err.Error()+"\n", 422) //unprocessable entity
+		return err.Error() + "\n", 422 //unprocessable entity
 	}
+
+	return "", 0
+
 }

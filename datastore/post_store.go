@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/patelndipen/AP1/app"
+	"github.com/patelndipen/AP1/models"
 )
 
 type PostStoreActions interface {
-	FindByID(string) (*app.Question, *app.Answer)
-	FindByAuthor(string, string) []*app.Question
-	FindByFilter(string, string) []*app.Question
-	CreateQuestion(*app.Question) int
+	FindByID(string) (*models.Question, *models.Answer)
+	FindByAuthor(string, string) []*models.Question
+	FindByFilter(string, string) []*models.Question
+	CheckQuestionExistence(string) int
+	StoreQuestion(string, string, string)
 }
 
 type PostStore struct {
@@ -22,7 +23,7 @@ func NewPostStore(db *sql.DB) *PostStore {
 	return &PostStore{db}
 }
 
-func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
+func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
 
 	row, err := store.DB.Query(`SELECT id, title, author, content, upvotes, submitted_at, edit_count FROM question WHERE id = $1`, id)
 
@@ -32,7 +33,7 @@ func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
 		return nil, nil
 	}
 
-	question := app.NewQuestionStruct()
+	question := models.NewQuestion()
 	err = row.Scan(&question.ID, &question.Title, &question.Author,
 		&question.Content, &question.Upvotes,
 		&question.SubmittedAt, &question.EditCount)
@@ -49,7 +50,7 @@ func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
 		return question, nil
 	}
 
-	answer := app.NewAnswerStruct()
+	answer := models.NewAnswer()
 	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.IsCurrentAnswer, &answer.Author, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
 	if err != nil {
 		log.Fatal(err)
@@ -58,7 +59,7 @@ func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
 	return question, answer
 }
 
-func (store *PostStore) FindByAuthor(filter, author string) []*app.Question {
+func (store *PostStore) FindByAuthor(filter, author string) []*models.Question {
 	var query string
 
 	if filter == "posted-by" {
@@ -77,7 +78,7 @@ func (store *PostStore) FindByAuthor(filter, author string) []*app.Question {
 	return scanQuestions(rows)
 }
 
-func (store *PostStore) FindByFilter(filter, offset string) []*app.Question {
+func (store *PostStore) FindByFilter(filter, offset string) []*models.Question {
 	filteredQueries := map[string]string{
 		"question/upvotes/desc": `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY upvotes DESC LIMIT 10 OFFSET $1`,
 		"question/upvotes/asc":  `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM  question ORDER BY upvotes ASC LIMIT 10 OFFSET $1`,
@@ -104,11 +105,11 @@ func (store *PostStore) FindByFilter(filter, offset string) []*app.Question {
 	return scanQuestions(rows)
 }
 
-func (store *PostStore) CreateQuestion(q *app.Question) int {
+func (store *PostStore) CheckQuestionExistence(title string) int {
 
 	var id int
 
-	row, err := store.DB.Query("SELECT id FROM question WHERE title = $1", q.Title)
+	row, err := store.DB.Query("SELECT id FROM question WHERE title = $1", title)
 	if err != nil {
 		log.Fatal(err)
 	} else if row.Next() {
@@ -119,19 +120,23 @@ func (store *PostStore) CreateQuestion(q *app.Question) int {
 		return id
 	}
 
-	transact(store.DB, func(tx *sql.Tx) error {
-		_, err = tx.Exec(`INSERT INTO question(title, author, content) values( $1, $2, $3)`, q.Title, q.Author, q.Content)
-		return err
-	})
-
 	return 0
 }
 
-func scanQuestions(rows *sql.Rows) []*app.Question {
-	var questions []*app.Question
+func (store *PostStore) StoreQuestion(title, author, content string) {
+
+	transact(store.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO question(title, author, content) values( $1, $2, $3)`, title, author, content)
+		return err
+	})
+
+}
+
+func scanQuestions(rows *sql.Rows) []*models.Question {
+	var questions []*models.Question
 
 	for rows.Next() {
-		tempQuestion := app.NewQuestionStruct()
+		tempQuestion := models.NewQuestion()
 		err := rows.Scan(&tempQuestion.ID, &tempQuestion.Title, &tempQuestion.Author, &tempQuestion.Upvotes, &tempQuestion.SubmittedAt, &tempQuestion.EditCount)
 		if err != nil {
 			log.Fatal(err)
