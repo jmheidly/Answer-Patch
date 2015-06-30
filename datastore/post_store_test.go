@@ -99,6 +99,14 @@ func TestFindByFilter(t *testing.T) {
 
 }
 
+func TestCreateQuestion(t *testing.T) {
+
+	//Test for recognition of existing question with exact title
+	if id := testingGlobalPostStore.CreateQuestion(&app.Question{Title: "Where is the best sushi place?"}); id != 1 {
+		t.Errorf("CreateQuestion did not return the id of an existing question, instead CreateQuestion returned %d", id)
+	}
+}
+
 func parseTimeStamp(timestamp string) time.Time {
 
 	// Parses a string representing the time.Time value into the corresponding time.Time value

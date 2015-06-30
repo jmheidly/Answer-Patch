@@ -11,6 +11,7 @@ type PostStoreActions interface {
 	FindByID(string) (*app.Question, *app.Answer)
 	FindByAuthor(string, string) []*app.Question
 	FindByFilter(string, string) []*app.Question
+	CreateQuestion(*app.Question) int
 }
 
 type PostStore struct {
@@ -23,25 +24,34 @@ func NewPostStore(db *sql.DB) *PostStore {
 
 func (store *PostStore) FindByID(id string) (*app.Question, *app.Answer) {
 
-	row := store.DB.QueryRow(`SELECT id, title, author, content, upvotes, submitted_at, edit_count FROM question WHERE id = $1`, id)
+	row, err := store.DB.Query(`SELECT id, title, author, content, upvotes, submitted_at, edit_count FROM question WHERE id = $1`, id)
+
+	if err != nil {
+		log.Fatal(err)
+	} else if !row.Next() {
+		return nil, nil
+	}
 
 	question := app.NewQuestionStruct()
-	err := row.Scan(&question.ID, &question.Title, &question.Author,
+	err = row.Scan(&question.ID, &question.Title, &question.Author,
 		&question.Content, &question.Upvotes,
 		&question.SubmittedAt, &question.EditCount)
 
-	if err == sql.ErrNoRows {
-		return nil, nil
-	} else if err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	answer := app.NewAnswerStruct()
-	row = store.DB.QueryRow(`SELECT id, question_id, is_current_answer, author, content, upvotes, last_edited_at FROM answer WHERE question_id = $1 AND is_current_answer = 'true'`, id)
-	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.IsCurrentAnswer, &answer.Author, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
-	if err == sql.ErrNoRows {
+	row, err = store.DB.Query(`SELECT id, question_id, is_current_answer, author, content, upvotes, last_edited_at FROM answer WHERE question_id = $1 AND is_current_answer = 'true'`, id)
+
+	if err != nil {
+		log.Fatal(err)
+	} else if !row.Next() {
 		return question, nil
-	} else if err != nil {
+	}
+
+	answer := app.NewAnswerStruct()
+	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.IsCurrentAnswer, &answer.Author, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -92,6 +102,29 @@ func (store *PostStore) FindByFilter(filter, offset string) []*app.Question {
 	}
 
 	return scanQuestions(rows)
+}
+
+func (store *PostStore) CreateQuestion(q *app.Question) int {
+
+	var id int
+
+	row, err := store.DB.Query("SELECT id FROM question WHERE title = $1", q.Title)
+	if err != nil {
+		log.Fatal(err)
+	} else if row.Next() {
+		err = row.Scan(&id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return id
+	}
+
+	transact(store.DB, func(tx *sql.Tx) error {
+		_, err = tx.Exec(`INSERT INTO question(title, author, content) values( $1, $2, $3)`, q.Title, q.Author, q.Content)
+		return err
+	})
+
+	return 0
 }
 
 func scanQuestions(rows *sql.Rows) []*app.Question {

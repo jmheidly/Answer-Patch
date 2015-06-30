@@ -46,3 +46,16 @@ func populateDatabase(db *sql.DB) {
 	db.Exec(`INSERT INTO answer(question_id, is_current_answer, author, content, upvotes) values (3, 'true', 'postStoreTester1', 'Easy, always to never', 100)`)
 
 }
+
+func transact(db *sql.DB, fn func(*sql.Tx) error) {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = fn(tx); err != nil {
+		tx.Rollback()
+	} else {
+		tx.Commit()
+	}
+}
