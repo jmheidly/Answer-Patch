@@ -74,27 +74,7 @@ func TestFindByFilter(t *testing.T) {
 
 	//Test for "question/upvotes/desc"
 	expectedQuestions := []*models.Question{{3, "What should my bench to squat ratio be?", "postStoreTester1", "", 100, parseTimeStamp("0000-01-01T22:20:05.726089-04:00"), 32}, {2, "How many days are there in spring?", "postStoreTester2", "", 13, parseTimeStamp("0000-01-01T22:20:05.714972-04:00"), 4}, {1, "Where is the best sushi place?", "postStoreTester1", "", 10, parseTimeStamp("0000-01-01T22:20:05.70397-04:00"), 2}}
-	retrievedQuestions := testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
-	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
-
-	//Test for "answer/upvotes/desc"
-	//expectedQuestions for answer/upvotes/desc is the same as expectedQuestions for questions/upvotes/desc
-	retrievedQuestions = testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
-	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
-
-	//Test for "question/date/desc"
-	//expectedQuestions for question/date/desc is the same as expectedQuestions for questions/upvotes/desc
-	retrievedQuestions = testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
-	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
-
-	//Test for "answer/edit/desc"
-	//expectedQuestions for answer/edit/desc is the same as expectedQuestions for questions/upvotes/desc
-	retrievedQuestions = testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
-	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
-
-	//Test for "answer/date/desc"
-	//expectedQuestions for answer/date/desc is the same as expectedQuestions for questions/upvotes/desc
-	retrievedQuestions = testingGlobalPostStore.FindByFilter("question/upvotes/desc", "0")
+	retrievedQuestions := testingGlobalPostStore.FindByFilter("question", "upvotes", "DESC", "0")
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
 }

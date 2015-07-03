@@ -3,6 +3,7 @@ package datastore
 import (
 	"database/sql"
 	"log"
+	"strings"
 
 	"github.com/patelndipen/AP1/models"
 )
@@ -10,7 +11,7 @@ import (
 type PostStoreActions interface {
 	FindByID(string) (*models.Question, *models.Answer)
 	FindByAuthor(string, string) []*models.Question
-	FindByFilter(string, string) []*models.Question
+	FindByFilter(string, string, string, string) []*models.Question
 	CheckQuestionExistence(string) int
 	StoreQuestion(string, string, string)
 }
@@ -78,26 +79,36 @@ func (store *PostStore) FindByAuthor(filter, author string) []*models.Question {
 	return scanQuestions(rows)
 }
 
-func (store *PostStore) FindByFilter(filter, offset string) []*models.Question {
-	filteredQueries := map[string]string{
-		"question/upvotes/desc": `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY upvotes DESC LIMIT 10 OFFSET $1`,
-		"question/upvotes/asc":  `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM  question ORDER BY upvotes ASC LIMIT 10 OFFSET $1`,
-		"answer/upvotes/desc":   `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes DESC LIMIT 10 OFFSET $1`,
-		"answer/upvotes/asc":    `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes ASC LIMIT 10 OFFSET $1`,
-		"question/date/desc":    `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at DESC LIMIT 10 OFFSET $1`,
-		"question/date/asc":     `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at ASC LIMIT 10 OFFSET $1`,
-		"answer/edits/desc":     `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY edit_count DESC LIMIT 10 OFFSET $1`,
-		"answer/edits/asc":      `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY answer_edits ASC LIMIT 10 OFFSET $1`,
-		"answer/date/desc":      `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at DESC LIMIT 10 OFFSET $1`,
-		"answer/date/asc":       `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at ASC LIMIT 10 OFFSET $1`,
+func (store *PostStore) FindByFilter(postComponent, filter, order, offset string) []*models.Question {
+	queryStmt := `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question`
+
+	if postComponent == "answer" {
+		queryStmt += " INNER JOIN answer a ON id = a.question_id"
 	}
 
-	query, ok := filteredQueries[filter]
-	if !ok {
-		return nil
-	}
+	queryStmt += " ORDER BY " + filter + " " + strings.ToUpper(order) + " LIMIT 10 OFFSET $1"
+	// Check the order and filter to make sure that they are proper
 
-	rows, err := store.DB.Query(query, offset)
+	/*
+		filteredQueries := map[string]string{
+			"question/upvotes/desc": `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY upvotes DESC LIMIT 10 OFFSET $1`,
+			"question/upvotes/asc":  `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM  question ORDER BY upvotes ASC LIMIT 10 OFFSET $1`,
+			"answer/upvotes/desc":   `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes DESC LIMIT 10 OFFSET $1`,
+			"answer/upvotes/asc":    `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes ASC LIMIT 10 OFFSET $1`,
+			"question/date/desc":    `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at DESC LIMIT 10 OFFSET $1`,
+			"question/date/asc":     `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at ASC LIMIT 10 OFFSET $1`,
+			"answer/edits/desc":     `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY edit_count DESC LIMIT 10 OFFSET $1`,
+			"answer/edits/asc":      `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY answer_edits ASC LIMIT 10 OFFSET $1`,
+			"answer/date/desc":      `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at DESC LIMIT 10 OFFSET $1`,
+			"answer/date/asc":       `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at ASC LIMIT 10 OFFSET $1`,
+		}
+
+		query, ok := filteredQueries[filter]
+		if !ok {
+			return nil
+		}
+	*/
+	rows, err := store.DB.Query(queryStmt, offset)
 	if err != nil {
 		log.Fatal(err)
 	}

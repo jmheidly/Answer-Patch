@@ -41,7 +41,8 @@ func ServeQuestionsByAuthor(store datastore.PostStoreActions) http.HandlerFunc {
 
 func ServeQuestionsByFilter(store datastore.PostStoreActions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		questions := store.FindByFilter(mux.Vars(r)["filter"], mux.Vars(r)["offset"])
+		routeVars := mux.Vars(r)
+		questions := store.FindByFilter(routeVars["postCompoent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
 		if questions == nil {
 			http.Error(w, "No questions exist with the provided query", http.StatusBadRequest)
 			return
