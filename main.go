@@ -13,7 +13,7 @@ func main() {
 
 	m := http.NewServeMux()
 	m.Handle("/api/", api.Handler(postStore))
-	m.Handle("/", app.Handler(postPostStore)
+	//	m.Handle("/", app.Handler(postStore))
 
 	fmt.Println("Listening on port 8080")
 	http.ListenAndServe(":8080", m)

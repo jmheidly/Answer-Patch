@@ -29,10 +29,9 @@ func ServePostByID(store datastore.PostStoreActions) http.HandlerFunc {
 func ServeQuestionsByUser(store datastore.PostStoreActions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		questions := store.FindByAuthor(mux.Vars(r)["filterBy"], mux.Vars(r)["user"])
+		questions := store.FindByUser(mux.Vars(r)["filterBy"], mux.Vars(r)["user"])
 		if questions == nil {
 			http.Error(w, "", http.StatusBadRequest)
-			return
 			return
 		}
 		middleware.PrintJSON(w, questions)
@@ -43,7 +42,7 @@ func ServeQuestionsByUser(store datastore.PostStoreActions) http.HandlerFunc {
 func ServeQuestionsByFilter(store datastore.PostStoreActions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		routeVars := mux.Vars(r)
-		questions := store.FindByFilter(routeVars["postCompoent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
+		questions := store.FindByFilter(routeVars["postComponent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
 		if questions == nil {
 			http.Error(w, "No questions match the specifications in the url", http.StatusBadRequest)
 			return
@@ -66,10 +65,10 @@ func ServeSubmitQuestion(store datastore.PostStoreActions) http.HandlerFunc {
 		}
 
 		switch {
+		case question.UserID == "":
+			missingComponent = "userID"
 		case question.Title == "":
 			missingComponent = "title"
-		case question.Author == "":
-			missingComponent = "author"
 		case question.Content == "":
 			missingComponent = "content"
 		}
@@ -80,13 +79,12 @@ func ServeSubmitQuestion(store datastore.PostStoreActions) http.HandlerFunc {
 		}
 
 		existingID := store.CheckQuestionExistence(question.Title)
-
+		// Redirects user to the post with the matching question title
 		if existingID != "" {
 			url := fmt.Sprintf("/api/posts/%d", existingID)
 			http.Redirect(w, r, url, 303) // Status 303 - See Other
 		} else {
-			question.ID = middleware.GenerateID("que")
-			store.StoreQuestion(question.ID, question.Title, question.Author, question.Content)
+			store.StoreQuestion(question.UserID, question.Title, question.Content)
 			w.WriteHeader(http.StatusCreated)
 		}
 	}

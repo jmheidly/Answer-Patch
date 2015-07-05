@@ -135,7 +135,7 @@ func checkQuestionsForEquality(t *testing.T, x []*models.Question, y []*models.Q
 		t.Errorf("Recieved nil, but expected %#v", y)
 	}
 
-	for i, _ := range x {
+	for i, _ := range y {
 		standardizeTime(&y[i].SubmittedAt, &x[i].SubmittedAt)
 		if !reflect.DeepEqual(x[i], y[i]) {
 			t.Errorf("\n\nExpected %#v,\n but recieved %#v\n\n", y[i], x[i])

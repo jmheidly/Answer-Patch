@@ -13,7 +13,7 @@ type PostStoreActions interface {
 	FindByUser(string, string) []*models.Question
 	FindByFilter(string, string, string, string) []*models.Question
 	CheckQuestionExistence(string) string
-	StoreQuestion(string, string, string, string)
+	StoreQuestion(string, string, string)
 }
 
 type PostStore struct {
@@ -80,13 +80,13 @@ func (store *PostStore) FindByFilter(postComponent, filter, order, offset string
 	// These maps convert the url param "filter" into a valid field that can be used as by ORDER BY in an sql query
 	questionFilters := map[string]string{
 		"upvotes": "q.upvotes",
-		"date":    "q.submittedAt",
+		"date":    "q.submitted_at",
+		"edits":   "q.edit_count",
 	}
 
 	answerFilters := map[string]string{
 		"upvotes": "a.upvotes",
 		"date":    "a.last_edited_at",
-		"edits":   "a.edit_count",
 	}
 
 	queryStmt := `SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q`
