@@ -10,10 +10,10 @@ import (
 
 type PostStoreActions interface {
 	FindByID(string) (*models.Question, *models.Answer)
-	FindByAuthor(string, string) []*models.Question
+	FindByUser(string, string) []*models.Question
 	FindByFilter(string, string, string, string) []*models.Question
-	CheckQuestionExistence(string) int
-	StoreQuestion(string, string, string)
+	CheckQuestionExistence(string) string
+	StoreQuestion(string, string, string, string)
 }
 
 type PostStore struct {
@@ -26,33 +26,28 @@ func NewPostStore(db *sql.DB) *PostStore {
 
 func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
 
-	row, err := store.DB.Query(`SELECT id, title, author, content, upvotes, submitted_at, edit_count FROM question WHERE id = $1`, id)
-
+	row, err := store.DB.Query(`SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q INNER JOIN ap_user u ON q.user_id = u.id WHERE q.id =$1`, id)
 	if err != nil {
 		log.Fatal(err)
-	} else if !row.Next() {
+	} else if !row.Next() { // Checks if rows were returned by the query
 		return nil, nil
 	}
 
 	question := models.NewQuestion()
-	err = row.Scan(&question.ID, &question.Title, &question.Author,
-		&question.Content, &question.Upvotes,
-		&question.SubmittedAt, &question.EditCount)
-
+	err = row.Scan(&question.ID, &question.UserID, &question.Username, &question.Title, &question.Content, &question.Upvotes, &question.EditCount, &question.SubmittedAt)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	row, err = store.DB.Query(`SELECT id, question_id, is_current_answer, author, content, upvotes, last_edited_at FROM answer WHERE question_id = $1 AND is_current_answer = 'true'`, id)
-
+	row, err = store.DB.Query(`SELECT a.id, a.question_id, a.user_id, u.username, a.is_current_answer, a.content, a.upvotes, a.last_edited_at FROM answer a INNER JOIN ap_user u ON a.user_id = u.id WHERE a.question_id = $1 AND is_current_answer = 'true'`, id)
 	if err != nil {
 		log.Fatal(err)
 	} else if !row.Next() {
-		return question, nil
+		return question, nil // A question could possibly lack any valid answer at the current moment
 	}
 
 	answer := models.NewAnswer()
-	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.IsCurrentAnswer, &answer.Author, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
+	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.UserID, &answer.Username, &answer.IsCurrentAnswer, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,18 +55,17 @@ func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
 	return question, answer
 }
 
-func (store *PostStore) FindByAuthor(filter, author string) []*models.Question {
-	var query string
+func (store *PostStore) FindByUser(filter, user string) []*models.Question {
 
-	if filter == "posted-by" {
-		query = `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question WHERE author = $1`
-	} else if filter == "answered-by" {
-		query = `SELECT q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON (a.author = $1 AND a.question_id = q.id)`
-	} else {
-		return nil
+	queryStmt := `SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q`
+
+	if filter == "posted-by" { // The user param is the username of auser that asked a question
+		queryStmt += ` INNER JOIN ap_user u ON q.user_id = u.id WHERE u.username = $1`
+	} else if filter == "answered-by" { // The user param is the username of a user that answered a question
+		queryStmt += ` JOIN ap_user answer_author ON answer_author.username = $1 JOIN answer a ON (answer_author.id = a.user_id AND a.question_id=q.id AND a.is_current_answer='true') INNER JOIN ap_user u ON q.user_id = u.id`
 	}
 
-	rows, err := store.DB.Query(query, author)
+	rows, err := store.DB.Query(queryStmt, user)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,34 +74,36 @@ func (store *PostStore) FindByAuthor(filter, author string) []*models.Question {
 }
 
 func (store *PostStore) FindByFilter(postComponent, filter, order, offset string) []*models.Question {
-	queryStmt := `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question`
 
-	if postComponent == "answer" {
-		queryStmt += " INNER JOIN answer a ON id = a.question_id"
+	var ok bool
+
+	// These maps convert the url param "filter" into a valid field that can be used as by ORDER BY in an sql query
+	questionFilters := map[string]string{
+		"upvotes": "q.upvotes",
+		"date":    "q.submittedAt",
 	}
 
-	queryStmt += " ORDER BY " + filter + " " + strings.ToUpper(order) + " LIMIT 10 OFFSET $1"
-	// Check the order and filter to make sure that they are proper
+	answerFilters := map[string]string{
+		"upvotes": "a.upvotes",
+		"date":    "a.last_edited_at",
+		"edits":   "a.edit_count",
+	}
 
-	/*
-		filteredQueries := map[string]string{
-			"question/upvotes/desc": `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY upvotes DESC LIMIT 10 OFFSET $1`,
-			"question/upvotes/asc":  `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM  question ORDER BY upvotes ASC LIMIT 10 OFFSET $1`,
-			"answer/upvotes/desc":   `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes DESC LIMIT 10 OFFSET $1`,
-			"answer/upvotes/asc":    `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.upvotes ASC LIMIT 10 OFFSET $1`,
-			"question/date/desc":    `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at DESC LIMIT 10 OFFSET $1`,
-			"question/date/asc":     `SELECT  id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY submitted_at ASC LIMIT 10 OFFSET $1`,
-			"answer/edits/desc":     `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY edit_count DESC LIMIT 10 OFFSET $1`,
-			"answer/edits/asc":      `SELECT id, title, author, upvotes, submitted_at, edit_count FROM question ORDER BY answer_edits ASC LIMIT 10 OFFSET $1`,
-			"answer/date/desc":      `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at DESC LIMIT 10 OFFSET $1`,
-			"answer/date/asc":       `SELECT  q.id, q.title, q.author, q.upvotes, q.submitted_at, q.edit_count FROM question q INNER JOIN answer a ON q.id = a.question_id ORDER BY a.last_edited_at ASC LIMIT 10 OFFSET $1`,
-		}
+	queryStmt := `SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q`
+	if postComponent == "question" {
+		queryStmt += ` INNER JOIN ap_user u ON q.user_id = u.id`
+		filter, ok = questionFilters[filter]
+	} else if postComponent == "answer" {
+		queryStmt += ` JOIN answer a ON (a.question_id=q.id AND a.is_current_answer='true') INNER JOIN ap_user u ON q.user_id = u.id`
+		filter, ok = answerFilters[filter]
+	}
 
-		query, ok := filteredQueries[filter]
-		if !ok {
-			return nil
-		}
-	*/
+	if !ok { // Returns nil if the url param "filter" is not a field capable of being used as a ORDER BY specification in an sql query
+		return nil
+	}
+
+	queryStmt += ` ORDER BY ` + filter + ` ` + strings.ToUpper(order) + ` LIMIT 10 OFFSET $1`
+
 	rows, err := store.DB.Query(queryStmt, offset)
 	if err != nil {
 		log.Fatal(err)
@@ -116,28 +112,28 @@ func (store *PostStore) FindByFilter(postComponent, filter, order, offset string
 	return scanQuestions(rows)
 }
 
-func (store *PostStore) CheckQuestionExistence(title string) int {
+func (store *PostStore) CheckQuestionExistence(title string) string {
 
-	var id int
+	var existingID string
 
 	row, err := store.DB.Query("SELECT id FROM question WHERE title = $1", title)
 	if err != nil {
 		log.Fatal(err)
 	} else if row.Next() {
-		err = row.Scan(&id)
+		err = row.Scan(&existingID)
 		if err != nil {
 			log.Fatal(err)
 		}
-		return id
+		return existingID
 	}
 
-	return 0
+	return ""
 }
 
-func (store *PostStore) StoreQuestion(title, author, content string) {
+func (store *PostStore) StoreQuestion(user_id, title, content string) {
 
 	transact(store.DB, func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO question(title, author, content) values( $1, $2, $3)`, title, author, content)
+		_, err := tx.Exec(`INSERT INTO question(user_id, title, content) values($1::uuid, $2, $3)`, user_id, title, content)
 		return err
 	})
 
@@ -148,7 +144,7 @@ func scanQuestions(rows *sql.Rows) []*models.Question {
 
 	for rows.Next() {
 		tempQuestion := models.NewQuestion()
-		err := rows.Scan(&tempQuestion.ID, &tempQuestion.Title, &tempQuestion.Author, &tempQuestion.Upvotes, &tempQuestion.SubmittedAt, &tempQuestion.EditCount)
+		err := rows.Scan(&tempQuestion.ID, &tempQuestion.UserID, &tempQuestion.Username, &tempQuestion.Title, &tempQuestion.Content, &tempQuestion.Upvotes, &tempQuestion.EditCount, &tempQuestion.SubmittedAt)
 		if err != nil {
 			log.Fatal(err)
 		}

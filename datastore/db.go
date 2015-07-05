@@ -22,31 +22,25 @@ func ConnectToDatabase(db_user, db_password, db_name string) *sql.DB {
 
 func initializeDatabase(db *sql.DB) {
 
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS question (id SERIAL PRIMARY KEY, title varchar(255) NOT NULL, author varchar(50) NOT NULL, content text NOT NULL, upvotes integer DEFAULT 0, submitted_at TIME WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, edit_count integer DEFAULT 0)`)
+	// Run 'create extension "uuid-ossp";' in your psql shell in order to use the uuid_generate_v4() function
 
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS ap_user(id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), username varchar(20), hashed_password char(60), reputation integer DEFAULT 0, created_at TIME WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS answer (id SERIAL PRIMARY KEY, question_id integer REFERENCES question ON DELETE CASCADE, is_current_answer boolean DEFAULT false, author varchar(50) NOT NULL, content text, upvotes integer DEFAULT 0, last_edited_at TIME WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`)
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS question (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), user_id uuid REFERENCES ap_user, title varchar(255) NOT NULL UNIQUE, content text NOT NULL, upvotes integer DEFAULT 0, edit_count integer DEFAULT 0, submitted_at TIME WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS answer (id uuid PRIMARY KEY DEFAULT uuid_generate_v4(), question_id uuid REFERENCES question ON DELETE CASCADE, user_id uuid REFERENCES ap_user, is_current_answer boolean DEFAULT false, content text, upvotes integer DEFAULT 0, last_edited_at TIME WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func populateDatabase(db *sql.DB) {
-
-	db.Exec(`INSERT INTO question(title, author, content, upvotes, edit_count) values( 'Where is the best sushi place?', 'postStoreTester1', 'I have cravings', 10, 2)`)
-	db.Exec(`INSERT INTO question(title, author, content, upvotes, edit_count) values( 'How many days are there in spring?', 'postStoreTester2', 'I love spring weather', 13, 4)`)
-	db.Exec(`INSERT INTO question(title, author, content, upvotes, edit_count) values( 'What should my bench to squat ratio be?', 'postStoreTester1', 'I need some gains', 100, 32)`)
-
-	db.Exec(`INSERT INTO answer(question_id, is_current_answer, author, content, upvotes) values (1, 'false','postStoreTester2', 'I think New York has a couple of good ones', 1)`)
-	db.Exec(`INSERT INTO answer(question_id, is_current_answer, author, content, upvotes) values (2, 'true', 'postStoreTester1', 'Spring 2016 starts on March 20th', 20)`)
-	db.Exec(`INSERT INTO answer(question_id, is_current_answer, author, content, upvotes) values (3, 'true', 'postStoreTester1', 'Easy, always to never', 100)`)
-
-}
-
+//Populates DB with questions, answers, and users for unit testing the post store
 func transact(db *sql.DB, fn func(*sql.Tx) error) {
 	tx, err := db.Begin()
 	if err != nil {
@@ -58,4 +52,24 @@ func transact(db *sql.DB, fn func(*sql.Tx) error) {
 	} else {
 		tx.Commit()
 	}
+}
+
+func CheckExistence(statement *sql.Stmt, val string) int {
+
+	var id int
+
+	row, err := statement.Query(val)
+
+	if err != nil {
+		log.Fatal(err)
+	} else if !row.Next() {
+		return 0
+	}
+
+	err = row.Scan(&id)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return id
 }

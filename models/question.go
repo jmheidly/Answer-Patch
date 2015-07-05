@@ -5,14 +5,14 @@ import (
 )
 
 type Question struct {
-	ID    int    `json:"questionID"`
-	Title string `json:"questionTitle"`
-	//User        *User     `json:"questionAuthor"`
-	Author      string    `json:"questionAuthor"`
+	ID          string    `json:"questionID"`
+	UserID      string    `json:"userID"`
+	Username    string    `json:"questionUsername"`
+	Title       string    `json:"questionTitle"`
 	Content     string    `json:"questionContent"`
 	Upvotes     int       `json:"questionUpvotes"`
-	SubmittedAt time.Time `json:"questionSubmittedAt"`
 	EditCount   int       `json:"answerEditCount"`
+	SubmittedAt time.Time `json:"questionSubmittedAt"`
 }
 
 func NewQuestion() *Question {

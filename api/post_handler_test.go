@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/patelndipen/AP1/middleware"
 	"github.com/patelndipen/AP1/models"
 )
 
@@ -37,7 +38,7 @@ func (store *MockPostStore) StoreQuestion(title, author, content string) {
 func TestServeSubmitQuestion(t *testing.T) {
 
 	store := &MockPostStore{existingID: 1}
-	handler := checkRequestBody(ServeSubmitQuestion(store))
+	handler := middleware.CheckRequestBody(ServeSubmitQuestion(store))
 
 	// Test whether empty request body reuslts in a status code of 400 - Bad Request
 	req, err := http.NewRequest("POST", "api/posts/question", nil)

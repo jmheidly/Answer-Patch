@@ -3,22 +3,19 @@ package router
 import "github.com/gorilla/mux"
 
 const (
-	ViewIndex         = "get:index"
-	ViewRegisteration = "get:registration_form"
-	ViewSubmission    = "get:post_submission_form"
+	ReadUser   = "get:user"
+	CreateUser = "post:user"
 )
 
-func NewNonAuthenticatedRouter() *mux.Router {
-	nonAuthRouter := mux.NewRouter()
-	nonAuthRouter.Path("/").Methods("GET").Name(ViewIndex)
-	nonAuthRouter.Path("/register").Methods("GET").Name(ViewRegisteration)
+func NewAppRouter() *mux.Router {
 
-	return nonAuthRouter
-}
+	appRouter := mux.NewRouter().StrictSlash(false)
 
-func NewAuthenticatedRouter() *mux.Router {
-	authRouter := mux.NewRouter()
-	authRouter.Path("submit").Methods("GET").Name(ViewSubmission)
+	//GET
+	appRouter.Path("/user/{id:[A-Za-z0-9]+}").Methods("GET").Name(ReadUser)
 
-	return authRouter
+	//POST
+	appRouter.Path("/register").Methods("POST").Name(CreateUser)
+
+	return appRouter
 }

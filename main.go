@@ -11,7 +11,9 @@ import (
 func main() {
 	postStore := datastore.NewPostStore(datastore.ConnectToDatabase("postgres", "test", "ap1"))
 
-	m := api.Handler(postStore)
+	m := http.NewServeMux()
+	m.Handle("/api/", api.Handler(postStore))
+	m.Handle("/", app.Handler(postPostStore)
 
 	fmt.Println("Listening on port 8080")
 	http.ListenAndServe(":8080", m)

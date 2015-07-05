@@ -11,6 +11,4 @@ func NewUser() *User {
 	return &User{}
 }
 
-/*
-func CreateNewUser(
-*/
+

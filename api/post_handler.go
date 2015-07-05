@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/patelndipen/AP1/datastore"
+	"github.com/patelndipen/AP1/middleware"
 	"github.com/patelndipen/AP1/models"
 )
 
@@ -16,25 +17,25 @@ func ServePostByID(store datastore.PostStoreActions) http.HandlerFunc {
 			http.Error(w, "No question exists with the provided id", http.StatusBadRequest)
 			return
 		} else {
-			printJSON(w, question)
+			middleware.PrintJSON(w, question)
 		}
 
 		if answer != nil {
-			printJSON(w, answer)
+			middleware.PrintJSON(w, answer)
 		}
 	}
 }
 
-func ServeQuestionsByAuthor(store datastore.PostStoreActions) http.HandlerFunc {
+func ServeQuestionsByUser(store datastore.PostStoreActions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		questions := store.FindByAuthor(mux.Vars(r)["filterBy"], mux.Vars(r)["author"])
+		questions := store.FindByAuthor(mux.Vars(r)["filterBy"], mux.Vars(r)["user"])
 		if questions == nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 			return
 		}
-		printJSON(w, questions)
+		middleware.PrintJSON(w, questions)
 	}
 
 }
@@ -44,10 +45,10 @@ func ServeQuestionsByFilter(store datastore.PostStoreActions) http.HandlerFunc {
 		routeVars := mux.Vars(r)
 		questions := store.FindByFilter(routeVars["postCompoent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
 		if questions == nil {
-			http.Error(w, "No questions exist with the provided query", http.StatusBadRequest)
+			http.Error(w, "No questions match the specifications in the url", http.StatusBadRequest)
 			return
 		}
-		printJSON(w, questions)
+		middleware.PrintJSON(w, questions)
 	}
 }
 
@@ -58,7 +59,7 @@ func ServeSubmitQuestion(store datastore.PostStoreActions) http.HandlerFunc {
 
 		question := models.NewQuestion()
 
-		errMessage, statusCode := parseRequestBody(r, question)
+		errMessage, statusCode := middleware.ParseRequestBody(r, question)
 		if statusCode != 0 {
 			http.Error(w, errMessage, statusCode)
 			return
@@ -80,11 +81,12 @@ func ServeSubmitQuestion(store datastore.PostStoreActions) http.HandlerFunc {
 
 		existingID := store.CheckQuestionExistence(question.Title)
 
-		if existingID != 0 {
+		if existingID != "" {
 			url := fmt.Sprintf("/api/posts/%d", existingID)
 			http.Redirect(w, r, url, 303) // Status 303 - See Other
 		} else {
-			store.StoreQuestion(question.Title, question.Author, question.Content)
+			question.ID = middleware.GenerateID("que")
+			store.StoreQuestion(question.ID, question.Title, question.Author, question.Content)
 			w.WriteHeader(http.StatusCreated)
 		}
 	}
