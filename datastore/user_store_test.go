@@ -33,3 +33,13 @@ func TestFindUserByID(t *testing.T) {
 	}
 
 }
+
+func TestStoreUser(t *testing.T) {
+	GlobalUserStore.StoreUser("{40ca4830-fdb0-48b6-b880-8b1677624223}", "TestUser", "$2a$10$iziTEDykz1SgOVWhLuBxeeBiZFJdD6GfTO0vA06IJTafiPfSu4QYq")
+	row, err := GlobalUserStore.DB.Query(`SELECT username FROM ap_user WHERE username = 'TestUser'`)
+	if err != nil {
+		log.Fatal(err)
+	} else if !row.Next() {
+		t.Errorf("Failed to insert user into the database through Userstore's StoreUser function")
+	}
+}

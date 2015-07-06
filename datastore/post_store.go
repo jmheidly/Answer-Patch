@@ -117,20 +117,12 @@ func (store *PostStore) FindQuestionsByFilter(postComponent, filter, order, offs
 
 func (store *PostStore) CheckQuestionExistence(title string) string {
 
-	var existingID string
-
-	row, err := store.DB.Query("SELECT id FROM question WHERE title = $1", title)
+	stmt, err := store.DB.Prepare(`SELECT id FROM question WHERE title = $1`)
 	if err != nil {
 		log.Fatal(err)
-	} else if row.Next() {
-		err = row.Scan(&existingID)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return existingID
 	}
 
-	return ""
+	return checkExistence(stmt, title)
 }
 
 func (store *PostStore) StoreQuestion(user_id, title, content string) {

@@ -55,16 +55,16 @@ func transact(db *sql.DB, fn func(*sql.Tx) error) {
 	}
 }
 
-func CheckExistence(statement *sql.Stmt, val string) int {
+func checkExistence(stmt *sql.Stmt, val string) string {
 
-	var id int
+	var id string
 
-	row, err := statement.Query(val)
+	row, err := stmt.Query(val)
 
 	if err != nil {
 		log.Fatal(err)
 	} else if !row.Next() {
-		return 0
+		return ""
 	}
 
 	err = row.Scan(&id)
