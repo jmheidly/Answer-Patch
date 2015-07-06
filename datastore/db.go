@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -72,4 +73,8 @@ func CheckExistence(statement *sql.Stmt, val string) int {
 	}
 
 	return id
+}
+
+func standardizeTime(x *time.Time, y *time.Time) {
+	*x = *y
 }

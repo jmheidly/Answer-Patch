@@ -10,9 +10,9 @@ import (
 	"github.com/patelndipen/AP1/models"
 )
 
-func ServePostByID(store datastore.PostStoreActions) http.HandlerFunc {
+func ServePostByID(store datastore.PostStoreServices) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		question, answer := store.FindByID(mux.Vars(r)["id"])
+		question, answer := store.FindPostByID(mux.Vars(r)["id"])
 		if question == nil {
 			http.Error(w, "No question exists with the provided id", http.StatusBadRequest)
 			return
@@ -26,10 +26,10 @@ func ServePostByID(store datastore.PostStoreActions) http.HandlerFunc {
 	}
 }
 
-func ServeQuestionsByUser(store datastore.PostStoreActions) http.HandlerFunc {
+func ServeQuestionsByUser(store datastore.PostStoreServices) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		questions := store.FindByUser(mux.Vars(r)["filterBy"], mux.Vars(r)["user"])
+		questions := store.FindQuestionsByUser(mux.Vars(r)["filterBy"], mux.Vars(r)["user"])
 		if questions == nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -39,10 +39,10 @@ func ServeQuestionsByUser(store datastore.PostStoreActions) http.HandlerFunc {
 
 }
 
-func ServeQuestionsByFilter(store datastore.PostStoreActions) http.HandlerFunc {
+func ServeQuestionsByFilter(store datastore.PostStoreServices) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		routeVars := mux.Vars(r)
-		questions := store.FindByFilter(routeVars["postComponent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
+		questions := store.FindQuestionsByFilter(routeVars["postComponent"], routeVars["filter"], routeVars["order"], routeVars["offset"])
 		if questions == nil {
 			http.Error(w, "No questions match the specifications in the url", http.StatusBadRequest)
 			return
@@ -51,7 +51,7 @@ func ServeQuestionsByFilter(store datastore.PostStoreActions) http.HandlerFunc {
 	}
 }
 
-func ServeSubmitQuestion(store datastore.PostStoreActions) http.HandlerFunc {
+func ServeSubmitQuestion(store datastore.PostStoreServices) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var missingComponent string

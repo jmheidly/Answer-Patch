@@ -15,15 +15,15 @@ type MockPostStore struct {
 	existingID string
 }
 
-func (store *MockPostStore) FindByID(id string) (*models.Question, *models.Answer) {
+func (store *MockPostStore) FindPostByID(id string) (*models.Question, *models.Answer) {
 	return nil, nil
 }
 
-func (store *MockPostStore) FindByUser(filter, author string) []*models.Question {
+func (store *MockPostStore) FindQuestionsByUser(filter, author string) []*models.Question {
 	return nil
 }
 
-func (store *MockPostStore) FindByFilter(postComponent, filter, order, offset string) []*models.Question {
+func (store *MockPostStore) FindQuestionsByFilter(postComponent, filter, order, offset string) []*models.Question {
 	return nil
 }
 

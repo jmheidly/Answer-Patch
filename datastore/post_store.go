@@ -8,10 +8,10 @@ import (
 	"github.com/patelndipen/AP1/models"
 )
 
-type PostStoreActions interface {
-	FindByID(string) (*models.Question, *models.Answer)
-	FindByUser(string, string) []*models.Question
-	FindByFilter(string, string, string, string) []*models.Question
+type PostStoreServices interface {
+	FindPostByID(string) (*models.Question, *models.Answer)
+	FindQuestionsByUser(string, string) []*models.Question
+	FindQuestionsByFilter(string, string, string, string) []*models.Question
 	CheckQuestionExistence(string) string
 	StoreQuestion(string, string, string)
 }
@@ -24,9 +24,9 @@ func NewPostStore(db *sql.DB) *PostStore {
 	return &PostStore{db}
 }
 
-func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
+func (store *PostStore) FindPostByID(id string) (*models.Question, *models.Answer) {
 
-	row, err := store.DB.Query(`SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q INNER JOIN ap_user u ON q.user_id = u.id WHERE q.id =$1`, id)
+	row, err := store.DB.Query(`SELECT q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q INNER JOIN ap_user u ON q.user_id = u.id WHERE q.id =$1`, id)
 	if err != nil {
 		log.Fatal(err)
 	} else if !row.Next() { // Checks if rows were returned by the query
@@ -34,12 +34,12 @@ func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
 	}
 
 	question := models.NewQuestion()
-	err = row.Scan(&question.ID, &question.UserID, &question.Username, &question.Title, &question.Content, &question.Upvotes, &question.EditCount, &question.SubmittedAt)
+	err = row.Scan(&question.UserID, &question.Username, &question.Title, &question.Content, &question.Upvotes, &question.EditCount, &question.SubmittedAt)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	row, err = store.DB.Query(`SELECT a.id, a.question_id, a.user_id, u.username, a.is_current_answer, a.content, a.upvotes, a.last_edited_at FROM answer a INNER JOIN ap_user u ON a.user_id = u.id WHERE a.question_id = $1 AND is_current_answer = 'true'`, id)
+	row, err = store.DB.Query(`SELECT a.id, a.user_id, u.username, a.is_current_answer, a.content, a.upvotes, a.last_edited_at FROM answer a INNER JOIN ap_user u ON a.user_id = u.id WHERE a.question_id = $1 AND is_current_answer = 'true'`, id)
 	if err != nil {
 		log.Fatal(err)
 	} else if !row.Next() {
@@ -47,15 +47,18 @@ func (store *PostStore) FindByID(id string) (*models.Question, *models.Answer) {
 	}
 
 	answer := models.NewAnswer()
-	err = row.Scan(&answer.ID, &answer.QuestionID, &answer.UserID, &answer.Username, &answer.IsCurrentAnswer, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
+	err = row.Scan(&answer.ID, &answer.UserID, &answer.Username, &answer.IsCurrentAnswer, &answer.Content, &answer.Upvotes, &answer.LastEditedAt)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	question.ID = id
+	answer.QuestionID = id
+
 	return question, answer
 }
 
-func (store *PostStore) FindByUser(filter, user string) []*models.Question {
+func (store *PostStore) FindQuestionsByUser(filter, user string) []*models.Question {
 
 	queryStmt := `SELECT q.id, q.user_id, u.username, q.title, q.content, q.upvotes, q.edit_count, q.submitted_at FROM question q`
 
@@ -73,7 +76,7 @@ func (store *PostStore) FindByUser(filter, user string) []*models.Question {
 	return scanQuestions(rows)
 }
 
-func (store *PostStore) FindByFilter(postComponent, filter, order, offset string) []*models.Question {
+func (store *PostStore) FindQuestionsByFilter(postComponent, filter, order, offset string) []*models.Question {
 
 	var ok bool
 
