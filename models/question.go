@@ -6,8 +6,8 @@ import (
 
 type Question struct {
 	ID          string    `json:"questionID"`
-	UserID      string    `json:"userID"`
-	Username    string    `json:"questionUsername"`
+	AuthorID    string    `json:"authorID"`
+	Author      string    `json:"questionAuthor"`
 	Title       string    `json:"questionTitle"`
 	Content     string    `json:"questionContent"`
 	Upvotes     int       `json:"questionUpvotes"`
@@ -15,6 +15,18 @@ type Question struct {
 	SubmittedAt time.Time `json:"questionSubmittedAt"`
 }
 
-func NewQuestion() *Question {
-	return &Question{}
+func (question *Question) GetMissingFields() string {
+
+	var missing string
+
+	switch {
+	case question.AuthorID == "":
+		missing = "Author's ID\n"
+	case question.Author == "":
+		missing += "Author's username\n"
+	case question.Title == "":
+		missing += "Title\n"
+	}
+
+	return missing
 }

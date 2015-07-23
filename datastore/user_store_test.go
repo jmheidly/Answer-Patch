@@ -5,41 +5,58 @@ import (
 	"testing"
 
 	"github.com/patelndipen/AP1/models"
+	"github.com/patelndipen/AP1/settings"
 )
 
 var GlobalUserStore *UserStore
 
 func init() {
-
-	GlobalUserStore = NewUserStore(ConnectToDatabase("postgres", "test", "ap1"))
+	settings.SetPreproductionEnv()
+	GlobalUserStore = &UserStore{DB: ConnectToPostgres()}
 
 }
 
-func TestFindUserByID(t *testing.T) {
+func TestFindUser(t *testing.T) {
 
 	expectedUser := &models.User{ID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Username: "Tester1", HashedPassword: "$2a$10$UyVxgEPxf.cS4V7QzuGfcOUm7mxBP8J.Rp6zqbZyppjiP8UvbU57a", Reputation: 10}
 
-	retrievedUser := GlobalUserStore.FindUserByID("0c1b2b91-9164-4d52-87b0-9c4b444ee62d")
+	retrievedUser := GlobalUserStore.FindUser("id", "0c1b2b91-9164-4d52-87b0-9c4b444ee62d")
 
 	if retrievedUser == nil {
 		t.Errorf("Expected and did not recieve %#v", expectedUser)
 	} else {
-		// Avoids the complication of parsing postgres timestamp values to golang time.Time values by setting the time.Time values of expected post components equal to the time.Time values of retrieved post components
-		standardizeTime(&expectedUser.CreatedAt, &retrievedUser.CreatedAt)
+		compareUsers(t, expectedUser, retrievedUser)
 	}
 
-	if !reflect.DeepEqual(retrievedUser, expectedUser) {
-		t.Errorf("Expected %#v, but recieved %#v", expectedUser, retrievedUser)
-	}
+	retrievedUser = GlobalUserStore.FindUser("username", "Tester1")
 
+	if retrievedUser == nil {
+		t.Errorf("Expected and did not recieve %#v", expectedUser)
+	} else {
+		compareUsers(t, expectedUser, retrievedUser)
+	}
+}
+
+func TestIsUsernameRegistered(t *testing.T) {
+	if !GlobalUserStore.IsUsernameRegistered("Tester2") {
+		t.Errorf("IsUsernameUnique function failed to recognize \"Tester2\" as a non unique username")
+	}
 }
 
 func TestStoreUser(t *testing.T) {
-	GlobalUserStore.StoreUser("{40ca4830-fdb0-48b6-b880-8b1677624223}", "TestUser", "$2a$10$iziTEDykz1SgOVWhLuBxeeBiZFJdD6GfTO0vA06IJTafiPfSu4QYq")
-	row, err := GlobalUserStore.DB.Query(`SELECT username FROM ap_user WHERE username = 'TestUser'`)
-	if err != nil {
-		log.Fatal(err)
-	} else if !row.Next() {
+	GlobalUserStore.StoreUser("TestUser", "$2a$10$iziTEDykz1SgOVWhLuBxeeBiZFJdD6GfTO0vA06IJTafiPfSu4QYq")
+	//	t.Errorf("\n%t\n", GlobalUserStore.IsUsernameRegistered("TestUser"))
+	if !GlobalUserStore.IsUsernameRegistered("TestUser") {
 		t.Errorf("Failed to insert user into the database through Userstore's StoreUser function")
+	}
+}
+
+func compareUsers(t *testing.T, x *models.User, y *models.User) {
+
+	// Avoids the complication of parsing postgres timestamp values to golang time.Time values by setting the time.Time values of expected post components equal to the time.Time values of retrieved post components
+	standardizeTime(&x.CreatedAt, &y.CreatedAt)
+
+	if !reflect.DeepEqual(x, y) {
+		t.Errorf("Expected %#v, but recieved %#v", x, y)
 	}
 }

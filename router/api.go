@@ -19,8 +19,8 @@ func NewAPIRouter() *mux.Router {
 
 	//GET
 	api.Path("/posts/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}").Methods("GET").Name(ReadPost)
-	api.Path("/questions/{filterBy:posted-by|answered-by}/{user:[A-Za-z0-9]+}").Methods("GET").Name(ReadQuestionsByAuthor)
-	api.Path("/{postComponent:question|answer}/{filter:upvotes|edits|date}/{order:desc|asc}/{offset:[0-9]+}").Methods("GET").Name(ReadFilteredQuestions)
+	api.Path("/questions/{filterBy:posted-by|answered-by}/{author:[A-Za-z0-9]+}").Methods("GET").Name(ReadQuestionsByAuthor)
+	api.Path("/{postComponent:questions|answers}/{filter:upvotes|edits|date}/{order:desc|asc}/{offset:[0-9]+}").Methods("GET").Name(ReadFilteredQuestions)
 
 	//POST
 	api.Path("/posts/question").Methods("POST").Name(CreateQuestion)

@@ -5,19 +5,21 @@ import (
 	"testing"
 
 	"github.com/patelndipen/AP1/models"
+	"github.com/patelndipen/AP1/settings"
 )
 
 var GlobalPostStore *PostStore
 
 func init() {
-	GlobalPostStore = NewPostStore(ConnectToDatabase("postgres", "test", "ap1"))
+	settings.SetPreproductionEnv()
+	GlobalPostStore = &PostStore{ConnectToPostgres()}
 }
 
 func TestFindPostByID(t *testing.T) {
 
-	expectedQuestion := &models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", UserID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Username: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}
+	expectedQuestion := &models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", AuthorID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Author: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}
 
-	expectedAnswer := &models.Answer{ID: "f46fd5c9-ea9b-4677-ba8a-433b27fc097c", QuestionID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", IsCurrentAnswer: true, Content: "Always to never", Upvotes: 20}
+	expectedAnswer := &models.Answer{ID: "f46fd5c9-ea9b-4677-ba8a-433b27fc097c", QuestionID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", IsCurrentAnswer: true, Content: "Always to never", Upvotes: 20}
 
 	retrievedQuestion, retrievedAnswer := GlobalPostStore.FindPostByID(expectedQuestion.ID)
 	if retrievedQuestion == nil {
@@ -39,15 +41,15 @@ func TestFindPostByID(t *testing.T) {
 
 }
 
-func TestFindQuestionsByUser(t *testing.T) {
+func TestFindQuestionsByAuthor(t *testing.T) {
 
-	expectedQuestions := []*models.Question{&models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
+	expectedQuestions := []*models.Question{&models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
 
-	retrievedQuestions := GlobalPostStore.FindQuestionsByUser("posted-by", "Tester2")
+	retrievedQuestions := GlobalPostStore.FindQuestionsByAuthor("posted-by", "Tester2")
 
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
-	retrievedQuestions = GlobalPostStore.FindQuestionsByUser("answered-by", "Tester1")
+	retrievedQuestions = GlobalPostStore.FindQuestionsByAuthor("answered-by", "Tester1")
 
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
@@ -56,24 +58,24 @@ func TestFindQuestionsByUser(t *testing.T) {
 func TestFindQuestionsByFilter(t *testing.T) {
 
 	//Test postComponent: "question", filter: "upvotes", order: "desc"
-	expectedQuestions := []*models.Question{&models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", UserID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Username: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
+	expectedQuestions := []*models.Question{&models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", AuthorID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Author: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
 
 	retrievedQuestions := GlobalPostStore.FindQuestionsByFilter("question", "upvotes", "DESC", "0")
 
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 
 	//Test postComponent: "answer", filter: "date", order: "asc"
-	expectedQuestions = []*models.Question{&models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", UserID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Username: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}, &models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", UserID: "95954f28-a8c3-4e76-8c80-18de07931639", Username: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
+	expectedQuestions = []*models.Question{&models.Question{ID: "38681976-4d2d-4581-8a68-1e4acfadcfa0", AuthorID: "0c1b2b91-9164-4d52-87b0-9c4b444ee62d", Author: "Tester1", Title: "What is should my squat to bench ratio be?", Content: "I need gains", Upvotes: 13, EditCount: 4}, &models.Question{ID: "526c4576-0e49-4e90-b760-e6976c698574", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Where is the best sushi place?", Content: "I have cravings", Upvotes: 15, EditCount: 5}, &models.Question{ID: "0a24c4cd-4c73-42e4-bcca-3844d088de85", AuthorID: "95954f28-a8c3-4e76-8c80-18de07931639", Author: "Tester2", Title: "Will Jordans make me a sick baller?", Content: "I need to improve my game", Upvotes: 10, EditCount: 1}}
 
 	retrievedQuestions = GlobalPostStore.FindQuestionsByFilter("answer", "date", "ASC", "0")
 
 	checkQuestionsForEquality(t, retrievedQuestions, expectedQuestions)
 }
 
-func TestCheckQuestionExistence(t *testing.T) {
+func TestIsTitleUnique(t *testing.T) {
 
 	//Test for the recognition of an existing question with a matching title
-	if id := GlobalPostStore.CheckQuestionExistence("Where is the best sushi place?"); id != "526c4576-0e49-4e90-b760-e6976c698574" {
+	if _, id := GlobalPostStore.IsTitleUnique("Where is the best sushi place?"); id != "526c4576-0e49-4e90-b760-e6976c698574" {
 		t.Errorf("CreateQuestion did not return the id of an existing question, instead CreateQuestion returned %d", id)
 	}
 
@@ -90,6 +92,7 @@ func TestStoreQuestion(t *testing.T) {
 		t.Errorf("Failed to insert question into the database through PostStore's StoreQuestion function")
 	}
 }
+
 func checkQuestionsForEquality(t *testing.T, x []*models.Question, y []*models.Question) {
 
 	if x == nil {

@@ -3,17 +3,18 @@ package api
 import (
 	"github.com/gorilla/mux"
 	"github.com/patelndipen/AP1/datastore"
-	"github.com/patelndipen/AP1/middleware"
+	m "github.com/patelndipen/AP1/middleware"
+	"github.com/patelndipen/AP1/models"
 	"github.com/patelndipen/AP1/router"
 )
 
-func Handler(store *datastore.PostStore) *mux.Router {
-	m := router.NewAPIRouter()
+func Handler(c *models.Context, store *datastore.PostStore) *mux.Router {
+	r := router.NewAPIRouter()
 
-	m.Get(router.ReadPost).Handler(ServePostByID(store))
-	m.Get(router.ReadQuestionsByAuthor).Handler(ServeQuestionsByUser(store))
-	m.Get(router.ReadFilteredQuestions).Handler(ServeQuestionsByFilter(store))
-	m.Get(router.CreateQuestion).Handler(middleware.CheckRequestBody(ServeSubmitQuestion(store)))
+	r.Get(router.ReadPost).Handler(ServePostByID(store))
+	r.Get(router.ReadQuestionsByAuthor).Handler(ServeQuestionsByAuthor(store))
+	r.Get(router.ReadFilteredQuestions).Handler(ServeQuestionsByFilter(store))
+	r.Get(router.CreateQuestion).Handler(m.AuthenticateToken(c, m.RefreshExpiringToken(m.ParseRequestBody(new(models.Question), ServeSubmitQuestion(store)))))
 
-	return m
+	return r
 }

@@ -8,53 +8,50 @@ import (
 )
 
 type UserStoreServices interface {
-	FindUserByID(string) *models.User
-	StoreUser(string, string, string)
-	CheckUserExistence(string) string
+	FindUser(string, string) *models.User
+	StoreUser(string, string)
+	IsUsernameRegistered(string) bool
 }
 
 type UserStore struct {
 	DB *sql.DB
 }
 
-func NewUserStore(db *sql.DB) *UserStore {
-	return &UserStore{DB: db}
-}
+func (store *UserStore) FindUser(filter, searchVal string) *models.User {
 
-func (store *UserStore) FindUserByID(id string) *models.User {
+	queryStmt := `SELECT id, username, hashed_password, reputation, created_at FROM  ap_user WHERE ` + filter + ` =$1`
 
-	user := models.NewUser()
-
-	row, err := store.DB.Query(`SELECT username, hashed_password, reputation, created_at FROM ap_user WHERE id=$1`, id)
+	row, err := store.DB.Query(queryStmt, searchVal)
 	if err != nil {
 		log.Fatal(err)
 	} else if !row.Next() {
 		return nil
 	}
 
-	err = row.Scan(&user.Username, &user.HashedPassword, &user.Reputation, &user.CreatedAt)
+	user := new(models.User)
+
+	err = row.Scan(&user.ID, &user.Username, &user.HashedPassword, &user.Reputation, &user.CreatedAt)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	user.ID = id
 
 	return user
 }
 
-func (store *UserStore) StoreUser(id, username, hashedPassword string) {
+func (store *UserStore) StoreUser(username, hashedpassword string) {
 
 	transact(store.DB, func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO user(id, username, hashed_password) values($1::uuid, $2, $3)`, id, username, hashedPassword)
+		_, err := tx.Exec(`INSERT INTO ap_user(username, hashed_password) values($1, $2)`, username, hashedpassword)
 		return err
 	})
 }
 
-func (store *UserStore) CheckUserExistence(username string) string {
+func (store *UserStore) IsUsernameRegistered(username string) bool {
 
-	stmt, err := store.DB.Prepare(`SELECT id FROM user WHERE username=$1`)
+	row, err := store.DB.Query(`SELECT username FROM ap_user WHERE username = $1`, username)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return checkExistence(stmt, username)
+
+	return row.Next()
 }

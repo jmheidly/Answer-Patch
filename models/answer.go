@@ -7,8 +7,8 @@ import (
 type Answer struct {
 	ID              string    `json:"answerID"`
 	QuestionID      string    `json:"questionID"`
-	UserID          string    `json:"userID"`
-	Username        string    `json:"answerUsername"`
+	AuthorID        string    `json:"authorID"`
+	Author          string    `json:"questionAuthor"`
 	IsCurrentAnswer bool      `json:"answerCurrent"`
 	Content         string    `json:"answerContent"`
 	Upvotes         int       `json:"answerUpvotes"`
