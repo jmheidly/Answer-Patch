@@ -5,8 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/patelndipen/AP1/auth"
+	m "github.com/patelndipen/AP1/middleware"
 	"github.com/patelndipen/AP1/models"
+	auth "github.com/patelndipen/AP1/services"
 )
 
 type MockUserStore struct {
@@ -34,7 +35,7 @@ func TestServeFindUserWithInvalidUser(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	ServeFindUser(&MockUserStore{})(w, r)
+	ServeFindUser(&MockUserStore{})(m.NewContext(), w, r)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected a status code of 400, because the MockUserStore's FindUser method always returns nil, but recieved an http status code of %d", w.Code)
@@ -53,7 +54,7 @@ func TestServeRegisterUserWithRegisterUsername(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	registeredUser := &models.UnauthUser{Username: "RegisteredUsername"}
-	c := &models.Context{ParsedModel: registeredUser}
+	c := &m.Context{ParsedModel: registeredUser}
 	ServeRegisterUser(&MockUserStore{IsRegistered: true})(c, w, r)
 
 	if w.Code != http.StatusBadRequest {
@@ -74,7 +75,7 @@ func TestServeLoginWithFailedLogin(t *testing.T) {
 
 	ac := &auth.AuthContext{UserID: "ID"}
 	unauthUser := &models.UnauthUser{Username: "Username", Password: "Wrong Password"}
-	c := &models.Context{ac, unauthUser}
+	c := &m.Context{ac, nil, unauthUser}
 
 	ServeLogin(&MockUserStore{User: &models.User{HashedPassword: "Hash"}})(c, w, r)
 

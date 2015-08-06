@@ -9,7 +9,7 @@ import (
 )
 
 type PostgresDSN struct {
-	User     string
+	Username string
 	Password string
 	DBName   string
 	SSLMode  string
@@ -20,22 +20,41 @@ type RedisDSN struct {
 	Password string
 }
 
+type MongoDSN struct {
+	Username string
+	Password string
+	Addr     string
+	DBName   string
+	ColName  string
+}
+
 func GetPostgresDSN() string {
 
-	dsn := &PostgresDSN{}
+	dsn := new(PostgresDSN)
 
 	getDSN("postgres", dsn)
 
-	return fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", dsn.User, dsn.Password, dsn.DBName, dsn.SSLMode)
+	return fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", dsn.Username, dsn.Password, dsn.DBName, dsn.SSLMode)
 
 }
 
 func GetRedisDSN() *RedisDSN {
-	dsn := &RedisDSN{}
+
+	dsn := new(RedisDSN)
 
 	getDSN("redis", dsn)
 
 	return dsn
+}
+
+func GetMongoDSN() *MongoDSN {
+
+	dsn := new(MongoDSN)
+
+	getDSN("mongo", dsn)
+
+	return dsn
+
 }
 
 func getDSN(dbName string, dsnStruct interface{}) {

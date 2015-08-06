@@ -6,9 +6,9 @@ import (
 
 	"github.com/patelndipen/AP1/api"
 	"github.com/patelndipen/AP1/app"
-	"github.com/patelndipen/AP1/auth"
 	"github.com/patelndipen/AP1/datastore"
-	"github.com/patelndipen/AP1/models"
+	m "github.com/patelndipen/AP1/middleware"
+	auth "github.com/patelndipen/AP1/services"
 	"github.com/patelndipen/AP1/settings"
 )
 
@@ -19,7 +19,9 @@ func main() {
 	postgresConn := datastore.ConnectToPostgres()
 	postStore := &datastore.PostStore{DB: postgresConn}
 	userStore := &datastore.UserStore{DB: postgresConn}
-	c := models.NewContext(&auth.JWTStore{auth.ConnectToRedis()})
+
+	ac := auth.NewAuthContext(&datastore.JWTStore{datastore.ConnectToRedis()})
+	c := &m.Context{ac, &datastore.RepStore{datastore.ConnectToMongoCol()}, nil} // may have to add nil for the model
 
 	r := http.NewServeMux()
 	r.Handle("/api/", api.Handler(c, postStore))

@@ -3,7 +3,7 @@ package app
 import (
 	//	"testing"
 
-	"github.com/patelndipen/AP1/auth"
+	auth "github.com/patelndipen/AP1/services"
 )
 
 type MockAuthContext struct {

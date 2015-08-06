@@ -1,10 +1,11 @@
-package auth
+package services
 
 import (
 	"log"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/patelndipen/AP1/datastore"
 	"github.com/patelndipen/AP1/settings"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,7 +22,11 @@ type Token struct {
 type AuthContext struct {
 	UserID     string
 	Exp        time.Time
-	TokenStore TokenStoreServices
+	TokenStore datastore.TokenStoreServices
+}
+
+func NewAuthContext(ts datastore.TokenStoreServices) *AuthContext {
+	return &AuthContext{UserID: "", Exp: time.Time{}, TokenStore: ts}
 }
 
 func (ac *AuthContext) Login(enteredPassword, hashedPassword string) *Token {
@@ -51,7 +56,7 @@ func authenticate(hashedPassword, enteredPassword string) bool {
 func setTokenClaims(userID string) *Token {
 	token := jwt.New(jwt.SigningMethodRS512)
 	token.Claims["iat"] = time.Now().Unix()
-	token.Claims["exp"] = time.Now().Add(time.Hour * time.Duration(JWTLife))
+	token.Claims["exp"] = time.Now().Add(time.Hour * time.Duration(JWTLife)).Unix()
 	token.Claims["sub"] = userID
 
 	signedToken, err := token.SignedString(settings.GetPrivateKey())

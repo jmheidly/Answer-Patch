@@ -5,13 +5,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/patelndipen/AP1/datastore"
-	"github.com/patelndipen/AP1/middleware"
+	m "github.com/patelndipen/AP1/middleware"
 	"github.com/patelndipen/AP1/models"
 	"github.com/patelndipen/AP1/services"
 )
 
-func ServeFindUser(store datastore.UserStoreServices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func ServeFindUser(store datastore.UserStoreServices) m.HandlerFunc {
+	return func(c *m.Context, w http.ResponseWriter, r *http.Request) {
 
 		user := store.FindUser(mux.Vars(r)["filter"], mux.Vars(r)["searchVal"])
 		if user == nil {
@@ -22,8 +22,8 @@ func ServeFindUser(store datastore.UserStoreServices) http.HandlerFunc {
 	}
 }
 
-func ServeRegisterUser(store datastore.UserStoreServices) middleware.ContextRequiredHandlerFunc {
-	return func(c *models.Context, w http.ResponseWriter, r *http.Request) {
+func ServeRegisterUser(store datastore.UserStoreServices) m.HandlerFunc {
+	return func(c *m.Context, w http.ResponseWriter, r *http.Request) {
 
 		newUser := c.ParsedModel.(*models.UnauthUser)
 
@@ -37,8 +37,8 @@ func ServeRegisterUser(store datastore.UserStoreServices) middleware.ContextRequ
 	}
 }
 
-func ServeLogin(store datastore.UserStoreServices) middleware.ContextRequiredHandlerFunc {
-	return func(c *models.Context, w http.ResponseWriter, r *http.Request) {
+func ServeLogin(store datastore.UserStoreServices) m.HandlerFunc {
+	return func(c *m.Context, w http.ResponseWriter, r *http.Request) {
 		unauthUser := c.ParsedModel.(*models.UnauthUser)
 		retrievedUser := store.FindUser("username", unauthUser.Username)
 		if retrievedUser == nil {

@@ -6,10 +6,10 @@ import (
 
 const (
 	ReadPost              = "get:post"
-	ReadQuestionsByAuthor = "get:questions_by_author"
-	ReadFilteredQuestions = "get:questions_by_filter"
+	ReadQuestionsByFilter = "get:questions_by_filter"
+	ReadSortedQuestions   = "get:sorted_questions"
 	CreateQuestion        = "post:question"
-	UpdateAnswer          = "put:answer"
+	CreatePendingAnswer   = "put:pending_answer"
 )
 
 func NewAPIRouter() *mux.Router {
@@ -19,14 +19,14 @@ func NewAPIRouter() *mux.Router {
 
 	//GET
 	api.Path("/posts/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}").Methods("GET").Name(ReadPost)
-	api.Path("/questions/{filterBy:posted-by|answered-by}/{author:[A-Za-z0-9]+}").Methods("GET").Name(ReadQuestionsByAuthor)
-	api.Path("/{postComponent:questions|answers}/{filter:upvotes|edits|date}/{order:desc|asc}/{offset:[0-9]+}").Methods("GET").Name(ReadFilteredQuestions)
+	api.Path("/questions/{filter:posted-by|answered-by|category}/{val:[A-Za-z0-9]+}").Methods("GET").Name(ReadQuestionsByFilter)
+	api.Path("/{postComponent:questions|answers}/{sortedBy:upvotes|edits|date}/{order:desc|asc}/{offset:[0-9]+}").Methods("GET").Name(ReadSortedQuestions)
 
 	//POST
-	api.Path("/posts/question").Methods("POST").Name(CreateQuestion)
+	api.Path("question/{category:[a-z]+}").Methods("POST").Name(CreateQuestion)
 
 	//PUT
-	api.Path("/posts/{id:[0-9]+}").Methods("PUT").Name(UpdateAnswer)
+	api.Path("/answer/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}").Methods("PUT").Name(CreatePendingAnswer)
 
 	return apiRouter
 }

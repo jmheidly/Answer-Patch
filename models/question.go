@@ -12,6 +12,7 @@ type Question struct {
 	Content     string    `json:"questionContent"`
 	Upvotes     int       `json:"questionUpvotes"`
 	EditCount   int       `json:"answerEditCount"`
+	Category    string    `json:"questionCategory"`
 	SubmittedAt time.Time `json:"questionSubmittedAt"`
 }
 
@@ -26,6 +27,8 @@ func (question *Question) GetMissingFields() string {
 		missing += "Author's username\n"
 	case question.Title == "":
 		missing += "Title\n"
+	case question.Category == "":
+		missing += "Category\n"
 	}
 
 	return missing

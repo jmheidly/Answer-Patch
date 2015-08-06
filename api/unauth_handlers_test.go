@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	m "github.com/patelndipen/AP1/middleware"
 )
 
 func TestServePostByIDWithInvalidID(t *testing.T) {
@@ -16,7 +18,7 @@ func TestServePostByIDWithInvalidID(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	ServePostByID(new(MockPostStore))(w, r)
+	ServePostByID(new(MockPostStore))(m.NewContext(), w, r)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected a status code of 400, because the MockPostStore's FindPostByID method always returns nil as a result, but recieved an http status code of %d", w.Code)
@@ -25,7 +27,7 @@ func TestServePostByIDWithInvalidID(t *testing.T) {
 	}
 }
 
-func TestServeQuestionsByAuthorWithInvalidAuthor(t *testing.T) {
+func TestServeQuestionsByFilterWithInvalidAuthor(t *testing.T) {
 
 	//Creates a request with an invalid Author
 	r, err := http.NewRequest("GET", "api/questions/posted-by/NonExistent", nil)
@@ -35,7 +37,7 @@ func TestServeQuestionsByAuthorWithInvalidAuthor(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	ServeQuestionsByAuthor(new(MockPostStore))(w, r)
+	ServeQuestionsByFilter(new(MockPostStore))(m.NewContext(), w, r)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected a status code of 400, because the MockPostStore's FindQuestionsByAuthor method always returns nil as a result, but recieved an http status code of %d", w.Code)
@@ -44,7 +46,7 @@ func TestServeQuestionsByAuthorWithInvalidAuthor(t *testing.T) {
 	}
 }
 
-func TestServeQuestionsByFilter(t *testing.T) {
+func TestServeSortedQuestions(t *testing.T) {
 
 	//Creates a request with filters that no questions satisfy
 	r, err := http.NewRequest("GET", "api/questions/upvotes/desc/10", nil)
@@ -54,7 +56,7 @@ func TestServeQuestionsByFilter(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	ServeQuestionsByFilter(new(MockPostStore))(w, r)
+	ServeSortedQuestions(new(MockPostStore))(m.NewContext(), w, r)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected a status code of 400, because the MockPostStore's FindQuestionsByFilter method always returns nil as a result, but recieved an http status code of %d", w.Code)

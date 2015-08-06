@@ -3,12 +3,11 @@ package app
 import (
 	"net/http"
 
-	"github.com/patelndipen/AP1/middleware"
-	"github.com/patelndipen/AP1/models"
+	m "github.com/patelndipen/AP1/middleware"
 )
 
-func ServeLogout() middleware.ContextRequiredHandlerFunc {
-	return func(c *models.Context, w http.ResponseWriter, r *http.Request) {
+func ServeLogout() m.HandlerFunc {
+	return func(c *m.Context, w http.ResponseWriter, r *http.Request) {
 		c.Logout(r.Header.Get("Authorization")[7:]) //Sends the signed token without the "BEARER:" prefix
 	}
 }

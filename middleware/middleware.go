@@ -10,22 +10,28 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"github.com/patelndipen/AP1/models"
 	"github.com/patelndipen/AP1/services"
 	"github.com/patelndipen/AP1/settings"
 )
 
-type ContextRequiredHandlerFunc func(*models.Context, http.ResponseWriter, *http.Request)
+type HandlerFunc func(*Context, http.ResponseWriter, *http.Request)
 
-func ServeHTTP(fn ContextRequiredHandlerFunc) http.HandlerFunc {
+func ServeHTTP(fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c := models.NewContext(nil)
+		c := NewContext()
 		fn(c, w, r)
 	}
 }
 
-func ParseRequestBody(model models.ModelServices, fn ContextRequiredHandlerFunc) ContextRequiredHandlerFunc {
-	return func(c *models.Context, w http.ResponseWriter, r *http.Request) {
+func ParseRequestBody(model models.ModelServices, fn HandlerFunc) HandlerFunc {
+	return func(c *Context, w http.ResponseWriter, r *http.Request) {
+		url := r.URL.RequestURI()
+		if (url != "/login") && (url != "/register") && (c.UserID == "") && (c.Exp == time.Time{}) {
+			http.Error(w, "JWT authentication required in order to complete this request", http.StatusUnauthorized)
+			return
+		}
 
 		//Checks whether the request body is in JSON format
 		if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
@@ -64,17 +70,31 @@ func ParseRequestBody(model models.ModelServices, fn ContextRequiredHandlerFunc)
 	}
 }
 
-func RefreshExpiringToken(fn ContextRequiredHandlerFunc) ContextRequiredHandlerFunc {
-	return func(c *models.Context, w http.ResponseWriter, r *http.Request) {
+func CheckRep(requirement int, fn HandlerFunc) HandlerFunc {
+	return func(c *Context, w http.ResponseWriter, r *http.Request) {
+		log.Fatal(mux.Vars(r)["category"])
+		rep := c.RepStore.FindRep(mux.Vars(r)["category"], c.UserID)
 
-		//Refreshes token, if the token expires in less than 24 hours
-		if c.Exp.Sub(time.Now()) < (time.Duration(24) * time.Hour) {
-			services.PrintJSON(w, (c.RefreshToken()))
+		if rep < requirement { // Consider responding with a flash message
+			http.Error(w, "Not enough reputation in order to complete the request", http.StatusForbidden)
 		}
+
+		fn(c, w, r)
 	}
 }
 
-func AuthenticateToken(c *models.Context, fn ContextRequiredHandlerFunc) http.HandlerFunc {
+func RefreshExpiringToken(fn HandlerFunc) HandlerFunc {
+	return func(c *Context, w http.ResponseWriter, r *http.Request) {
+
+		//Refreshes token, if the token expires in less than 24 hours
+		if (c.Exp != time.Time{}) && (c.Exp.Sub(time.Now()) < (time.Duration(24) * time.Hour)) {
+			services.PrintJSON(w, (c.RefreshToken()))
+		}
+		fn(c, w, r)
+	}
+}
+
+func AuthenticateToken(c *Context, fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		token, err := jwt.ParseFromRequest(r, func(parsedToken *jwt.Token) (interface{}, error) {
@@ -85,7 +105,12 @@ func AuthenticateToken(c *models.Context, fn ContextRequiredHandlerFunc) http.Ha
 				return settings.GetPublicKey(), nil
 			}
 		})
-		if err != nil {
+
+		if err == jwt.ErrNoTokenInRequest {
+			fn(c, w, r)
+			return
+		} else if err != nil {
+
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -107,16 +132,11 @@ func AuthenticateToken(c *models.Context, fn ContextRequiredHandlerFunc) http.Ha
 			return
 		}
 
-		exp, ok := token.Claims["exp"].(string)
+		_, ok = token.Claims["exp"].(float64)
 		if !ok {
-			log.Fatal("The underlying type of exp is not string")
-		}
-		c.Exp, err = time.Parse(time.RFC3339Nano, exp)
-		if err != nil {
-			log.Fatal(err)
+			log.Fatal("The underlying type of exp is not float64")
 		}
 
 		fn(c, w, r)
 	}
-
 }

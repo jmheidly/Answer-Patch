@@ -1,5 +1,5 @@
 {
-	"User": "postgres",
+	"Username": "postgres",
 	"Password": "test",
 	"DBName": "ap1",
 	"SSLMode": "disable"
