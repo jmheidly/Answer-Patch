@@ -5,15 +5,16 @@ import (
 )
 
 type Question struct {
-	ID          string    `json:"questionID"`
-	AuthorID    string    `json:"authorID"`
-	Author      string    `json:"questionAuthor"`
-	Title       string    `json:"questionTitle"`
-	Content     string    `json:"questionContent"`
-	Upvotes     int       `json:"questionUpvotes"`
-	EditCount   int       `json:"answerEditCount"`
-	Category    string    `json:"questionCategory"`
-	SubmittedAt time.Time `json:"questionSubmittedAt"`
+	ID           string    `json:"questionID"`
+	UserID       string    `json:"questionUserID"`
+	Username     string    `json:"questionUsername"`
+	Category     string    `json:"questionCategory"`
+	Title        string    `json:"questionTitle"`
+	Content      string    `json:"questionContent"`
+	Upvotes      int       `json:"questionUpvotes"`
+	EditCount    int       `json:"answerEditCount"`
+	PendingCount int       `json:"pendingAnswerCount"`
+	SubmittedAt  time.Time `json:"questionSubmittedAt"`
 }
 
 func (question *Question) GetMissingFields() string {
@@ -21,9 +22,9 @@ func (question *Question) GetMissingFields() string {
 	var missing string
 
 	switch {
-	case question.AuthorID == "":
-		missing = "Author's ID\n"
-	case question.Author == "":
+	case question.UserID == "":
+		missing = "Author's user ID\n"
+	case question.Username == "":
 		missing += "Author's username\n"
 	case question.Title == "":
 		missing += "Title\n"

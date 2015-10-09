@@ -1,4 +1,4 @@
 {
 	"Addr": ":6379",
-	"Password": "test"
+	"Password": "password"
 }

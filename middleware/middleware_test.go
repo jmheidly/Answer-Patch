@@ -3,27 +3,42 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
+	//	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/patelndipen/AP1/datastore"
 	auth "github.com/patelndipen/AP1/services"
 	"github.com/patelndipen/AP1/settings"
 )
-
-type MockModel struct {
-	Field string
-}
 
 type MockTokenStore struct {
 	IsStored bool
 }
 
-func init() {
-	settings.SetPreproductionEnv()
+type MockRepStore struct {
+	Rep int
+}
+
+type MockModel struct {
+	Field string
+}
+
+func (store *MockTokenStore) StoreToken(key, val string, exp int) error {
+	return nil
+}
+
+func (store *MockRepStore) FindRep(category, userId string) (int, error) {
+	return store.Rep, nil
+}
+
+func (store *MockRepStore) UpdateRep(category, userID string, rep int) error {
+	return nil
+}
+
+func (store *MockTokenStore) IsTokenStored(key string) (bool, error) {
+	return store.IsStored, nil
 }
 
 func (model *MockModel) GetMissingFields() string {
@@ -33,11 +48,8 @@ func (model *MockModel) GetMissingFields() string {
 	return ""
 }
 
-func (store *MockTokenStore) StoreToken(key, val string, exp int) {
-}
-
-func (store *MockTokenStore) IsTokenStored(key string) bool {
-	return store.IsStored
+func init() {
+	settings.SetPreproductionEnv()
 }
 
 func TestParseRequestBody(t *testing.T) {
@@ -97,29 +109,25 @@ func TestParseRequestBodyOnEmptyBody(t *testing.T) {
 	}
 }
 
-/*
-func TestCheckRep(t *testing.T) {
+func TestCheckRepWithInsufficientRep(t *testing.T) {
 
 	r, err := http.NewRequest("POST", "api/question/testing", nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	mux.Vars(r)["category"] = "testing"
-
 	w := httptest.NewRecorder()
 
-	c := &Context{&auth.AuthContext{UserID: "1"}, &datastore.RepStore{datastore.ConnectToMongoCol()}, nil}
+	c := &Context{&auth.AuthContext{UserID: ""}, &MockRepStore{Rep: 1}, nil}
 
-	CheckRep(20, func(c *Context, w http.ResponseWriter, r *http.Request) {})(c, w, r)
+	CheckRep(func(c *Context, w http.ResponseWriter, r *http.Request) {})(c, w, r)
 
 	if w.Code != http.StatusForbidden {
-		t.Errorf("Expected a http status code of 403, because the rep requirement was not met, but recieved a status code of %d", w.Code)
-	} else if w.Body.String() != "Not enough reputation in order to complete the request" {
+		t.Errorf("Expected a http status code of 403 Forbidden, because the rep requirement was not met, but recieved a status code of %d", w.Code)
+	} else if w.Body.String() != "Not enough reputation in order to complete the request\n" {
 		t.Errorf("Expected the response writer body to contain \"Not enough reputation in order to complete the request\", but instead the response writer body contains %s", w.Body.String())
 	}
 }
-*/
 
 func TestRefreshToken(t *testing.T) {
 
@@ -184,7 +192,13 @@ func TestAuthenticateTokenParseOperations(t *testing.T) {
 	c := &Context{ac, nil, nil}
 
 	//JWT token with a "sub" claim set to "0"
-	r.Header.Set("Authorization", "BEARER:"+ac.RefreshToken().SignedToken)
+
+	refreshedToken, err := ac.RefreshToken()
+	if err != nil {
+		t.Error(err)
+	}
+
+	r.Header.Set("Authorization", "BEARER:"+refreshedToken.SignedToken)
 
 	w := httptest.NewRecorder()
 
@@ -204,7 +218,12 @@ func TestAuthenticateTokenWithExpiredToken(t *testing.T) {
 
 	c := &Context{auth.NewAuthContext(&MockTokenStore{IsStored: true}), nil, nil}
 
-	r.Header.Set("Authorization", "BEARER:"+c.RefreshToken().SignedToken)
+	refreshedToken, err := c.RefreshToken()
+	if err != nil {
+		t.Error(err)
+	}
+
+	r.Header.Set("Authorization", "BEARER:"+refreshedToken.SignedToken)
 	w := httptest.NewRecorder()
 
 	AuthenticateToken(c, func(c *Context, w http.ResponseWriter, r *http.Request) {})(w, r)

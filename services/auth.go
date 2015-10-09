@@ -1,11 +1,12 @@
 package services
 
 import (
+	"errors"
 	"log"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/patelndipen/AP1/datastore"
+	"github.com/patelndipen/AP1/datastores"
 	"github.com/patelndipen/AP1/settings"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,41 +20,55 @@ type Token struct {
 	SignedToken string `json:"token"`
 }
 
+type AuthServices interface {
+	Login(string, string) (*Token, error)
+	Logout(string) error
+	RefreshToken() (*Token, error)
+}
+
 type AuthContext struct {
 	UserID     string
 	Exp        time.Time
-	TokenStore datastore.TokenStoreServices
+	TokenStore datastores.TokenStoreServices
 }
 
-func NewAuthContext(ts datastore.TokenStoreServices) *AuthContext {
+var InternalErr = errors.New("Internal Error")
+
+func NewAuthContext(ts datastores.TokenStoreServices) *AuthContext {
 	return &AuthContext{UserID: "", Exp: time.Time{}, TokenStore: ts}
 }
 
-func (ac *AuthContext) Login(enteredPassword, hashedPassword string) *Token {
+func (ac *AuthContext) Login(enteredPassword, hashedPassword string) (*Token, error) {
 	if !authenticate(hashedPassword, enteredPassword) {
-		return nil // Returns "" if an incorrect password is submitted
+		return nil, errors.New("Credentials are incorrect")
 	}
 
 	return setTokenClaims(ac.UserID)
 }
 
-func (ac *AuthContext) Logout(signedToken string) {
+func (ac *AuthContext) Logout(signedToken string) error {
 
 	storeTime := int(ac.Exp.Sub(time.Now()).Seconds() + StoreOffset)
 
-	ac.TokenStore.StoreToken(ac.UserID, signedToken, storeTime)
+	err := ac.TokenStore.StoreToken(ac.UserID, signedToken, storeTime)
+	if err != nil {
+		return InternalErr
+	}
 
+	return nil
 }
 
-func (ac *AuthContext) RefreshToken() *Token {
+func (ac *AuthContext) RefreshToken() (*Token, error) {
 	return setTokenClaims(ac.UserID)
 }
 
 func authenticate(hashedPassword, enteredPassword string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(enteredPassword)) == nil
+	return true
+
 }
 
-func setTokenClaims(userID string) *Token {
+func setTokenClaims(userID string) (*Token, error) {
 	token := jwt.New(jwt.SigningMethodRS512)
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Hour * time.Duration(JWTLife)).Unix()
@@ -62,6 +77,7 @@ func setTokenClaims(userID string) *Token {
 	signedToken, err := token.SignedString(settings.GetPrivateKey())
 	if err != nil {
 		log.Fatal(err)
+		return nil, InternalErr
 	}
-	return &Token{SignedToken: signedToken}
+	return &Token{SignedToken: signedToken}, nil
 }

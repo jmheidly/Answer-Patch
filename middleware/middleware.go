@@ -16,6 +16,10 @@ import (
 	"github.com/patelndipen/AP1/settings"
 )
 
+const (
+	MIN_REP_FOR_ASKING_QUESTION = 10
+)
+
 type HandlerFunc func(*Context, http.ResponseWriter, *http.Request)
 
 func ServeHTTP(fn HandlerFunc) http.HandlerFunc {
@@ -27,12 +31,12 @@ func ServeHTTP(fn HandlerFunc) http.HandlerFunc {
 
 func ParseRequestBody(model models.ModelServices, fn HandlerFunc) HandlerFunc {
 	return func(c *Context, w http.ResponseWriter, r *http.Request) {
+
 		url := r.URL.RequestURI()
 		if (url != "/login") && (url != "/register") && (c.UserID == "") && (c.Exp == time.Time{}) {
 			http.Error(w, "JWT authentication required in order to complete this request", http.StatusUnauthorized)
 			return
 		}
-
 		//Checks whether the request body is in JSON format
 		if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
 			http.Error(w, "This api only accepts JSON payloads. Be sure to specify the \"Content-Type\" of the payload in the request header.", http.StatusBadRequest)
@@ -70,13 +74,18 @@ func ParseRequestBody(model models.ModelServices, fn HandlerFunc) HandlerFunc {
 	}
 }
 
-func CheckRep(requirement int, fn HandlerFunc) HandlerFunc {
+func CheckRep(fn HandlerFunc) HandlerFunc {
 	return func(c *Context, w http.ResponseWriter, r *http.Request) {
-		log.Fatal(mux.Vars(r)["category"])
-		rep := c.RepStore.FindRep(mux.Vars(r)["category"], c.UserID)
+		category := mux.Vars(r)["category"]
+		rep, err := c.RepStore.FindRep(category, c.UserID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-		if rep < requirement { // Consider responding with a flash message
+		if rep < MIN_REP_FOR_ASKING_QUESTION {
 			http.Error(w, "Not enough reputation in order to complete the request", http.StatusForbidden)
+			return
 		}
 
 		fn(c, w, r)
@@ -88,7 +97,14 @@ func RefreshExpiringToken(fn HandlerFunc) HandlerFunc {
 
 		//Refreshes token, if the token expires in less than 24 hours
 		if (c.Exp != time.Time{}) && (c.Exp.Sub(time.Now()) < (time.Duration(24) * time.Hour)) {
-			services.PrintJSON(w, (c.RefreshToken()))
+
+			refreshedToken, err := c.RefreshToken()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			services.PrintJSON(w, refreshedToken)
 		}
 		fn(c, w, r)
 	}
@@ -110,7 +126,6 @@ func AuthenticateToken(c *Context, fn HandlerFunc) http.HandlerFunc {
 			fn(c, w, r)
 			return
 		} else if err != nil {
-
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -127,7 +142,13 @@ func AuthenticateToken(c *Context, fn HandlerFunc) http.HandlerFunc {
 			log.Fatal("The underlying type of sub is not string")
 		}
 
-		if c.TokenStore.IsTokenStored(c.UserID) {
+		isStored, err := c.TokenStore.IsTokenStored(c.UserID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if isStored {
 			http.Error(w, "Token is no longer valid", http.StatusUnauthorized)
 			return
 		}
